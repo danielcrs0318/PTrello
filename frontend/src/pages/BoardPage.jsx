@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MoreHoriz, FilterList, ArrowBack, Star, PersonAdd, Menu as MenuIcon, Palette, DarkMode, LightMode, Edit, Delete, GitHub } from '@mui/icons-material';
-import { Menu, MenuItem, ListItemIcon, ListItemText, Divider, Popover, Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
+import { MoreHoriz, FilterList, ArrowBack, Star, PersonAdd, Palette, Edit, Delete, GitHub, Send, Notifications } from '@mui/icons-material';
+import { Menu, MenuItem, ListItemIcon, ListItemText, Divider, Popover, Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert } from '@mui/material';
 
 import { BoardView } from '../components/BoardView.jsx';
 import { ShareBoardModal } from '../components/ShareBoardModal.jsx';
@@ -12,20 +12,20 @@ import { useTheme } from '../providers/ThemeProvider';
 import { apiClient } from '../services/api.js';
 
 const backgroundOptions = [
-    { name: 'Azul Océano', value: 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)' },
-    { name: 'Cielo', value: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)' },
-    { name: 'Verde Esmeralda', value: 'linear-gradient(135deg, #065f46 0%, #059669 100%)' },
-    { name: 'Morado Espacial', value: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%)' },
-    { name: 'Rosa Atardecer', value: 'linear-gradient(135deg, #be123c 0%, #e11d48 100%)' },
-    { name: 'Naranja Fuego', value: 'linear-gradient(135deg, #c2410c 0%, #ea580c 100%)' },
-    { name: 'Gris Oscuro', value: 'linear-gradient(135deg, #1f2937 0%, #374151 100%)' },
-    { name: 'Índigo Profundo', value: 'linear-gradient(135deg, #3730a3 0%, #4f46e5 100%)' },
+    { value: 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)' },
+    { value: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)' },
+    { value: 'linear-gradient(135deg, #065f46 0%, #059669 100%)' },
+    { value: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%)' },
+    { value: 'linear-gradient(135deg, #be123c 0%, #e11d48 100%)' },
+    { value: 'linear-gradient(135deg, #c2410c 0%, #ea580c 100%)' },
+    { value: 'linear-gradient(135deg, #1f2937 0%, #374151 100%)' },
+    { value: 'linear-gradient(135deg, #3730a3 0%, #4f46e5 100%)' },
 ];
 
 export const BoardPage = () => {
     const { boardId } = useParams();
     const navigate = useNavigate();
-    const { isDark, toggleTheme, colors } = useTheme();
+    const { colors } = useTheme();
     const [boardInfo, setBoardInfo] = useState(null);
     const [backgroundColor, setBackgroundColor] = useState('linear-gradient(135deg, #0c4a6e 0%, #075985 100%)');
     const [isOwner, setIsOwner] = useState(false);
@@ -39,6 +39,10 @@ export const BoardPage = () => {
     const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
     const [boardMenuAnchorEl, setBoardMenuAnchorEl] = useState(null);
     const [colorAnchorEl, setColorAnchorEl] = useState(null);
+    const [sendingSummary, setSendingSummary] = useState(false);
+    const [summaryMessage, setSummaryMessage] = useState(null);
+    const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
     const userMenuOpen = Boolean(userMenuAnchorEl);
     const boardMenuOpen = Boolean(boardMenuAnchorEl);
     const colorOpen = Boolean(colorAnchorEl);
@@ -86,6 +90,26 @@ export const BoardPage = () => {
 
     const handleColorMenuClose = () => {
         setColorAnchorEl(null);
+    };
+
+    const handleOpenNotifications = () => {
+        if (!boardMenuAnchorEl) return;
+        setNotificationsAnchorEl(boardMenuAnchorEl);
+        setNotificationsOpen(true);
+    };
+
+    const handleSendDailySummary = async () => {
+        if (sendingSummary) return;
+        setSendingSummary(true);
+        try {
+            await apiClient.post('/notifications/daily-report');
+            setSummaryMessage({ type: 'success', text: 'Resumen diario enviado.' });
+        } catch (error) {
+            console.error('Error al enviar resumen diario:', error);
+            setSummaryMessage({ type: 'error', text: 'No fue posible enviar el resumen.' });
+        } finally {
+            setSendingSummary(false);
+        }
     };
 
     const handleBackgroundChange = async (newBackground) => {
@@ -203,38 +227,6 @@ export const BoardPage = () => {
                     </div>
                     
                     <div className="flex items-center gap-1">
-                        {/* Botón cambiar fondo */}
-                        <button 
-                            onClick={handleColorMenuOpen}
-                            className="text-white/90 hover:bg-white/10 p-1.5 rounded transition-colors flex-shrink-0"
-                            title="Cambiar fondo"
-                        >
-                            <Palette sx={{ fontSize: { xs: 20, sm: 24 } }} />
-                        </button>
-                        
-                        {/* Botón cambio de tema */}
-                        <IconButton
-                            onClick={toggleTheme}
-                            size="small"
-                            className="text-white/90 hover:bg-white/10 flex-shrink-0"
-                            sx={{ p: { xs: '6px', sm: '8px' } }}
-                            title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-                        >
-                            {isDark ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
-                        </IconButton>
-                        
-                        {/* Botón filtro */}
-                        <button 
-                            onClick={() => setFilterModalOpen(true)}
-                            className="text-white/90 hover:bg-white/10 p-1.5 sm:p-2 rounded transition-colors"
-                            title="Filtrar tareas"
-                        >
-                            <FilterList fontSize="small" />
-                        </button>
-                        
-                        {/* Campanita de notificaciones */}
-                        <NotificationBell />
-                        
                         {/* Avatar del usuario con menú */}
                         {user && (
                             <>
@@ -295,16 +287,71 @@ export const BoardPage = () => {
                                 sx: {
                                     bgcolor: colors.bg.modal,
                                     color: colors.text.primary,
-                                    minWidth: 200,
+                                    minWidth: 220,
                                     mt: 1,
                                     border: `1px solid ${colors.border.primary}`,
                                 }
                             }}
                         >
-                            <MenuItem disabled sx={{ color: colors.text.secondary }}>
-                                <ListItemText>Próximamente más opciones...</ListItemText>
+                            <MenuItem
+                                onClick={() => {
+                                    setColorAnchorEl(boardMenuAnchorEl);
+                                    handleBoardMenuClose();
+                                }}
+                                sx={{ '&:hover': { bgcolor: colors.bg.hover } }}
+                            >
+                                <ListItemIcon>
+                                    <Palette fontSize="small" sx={{ color: colors.text.primary }} />
+                                </ListItemIcon>
+                                <ListItemText>Cambiar fondo</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    setFilterModalOpen(true);
+                                    handleBoardMenuClose();
+                                }}
+                                sx={{ '&:hover': { bgcolor: colors.bg.hover } }}
+                            >
+                                <ListItemIcon>
+                                    <FilterList fontSize="small" sx={{ color: colors.text.primary }} />
+                                </ListItemIcon>
+                                <ListItemText>Filtrar tareas</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    handleSendDailySummary();
+                                    handleBoardMenuClose();
+                                }}
+                                disabled={sendingSummary}
+                                sx={{ '&:hover': { bgcolor: colors.bg.hover } }}
+                            >
+                                <ListItemIcon>
+                                    <Send fontSize="small" sx={{ color: colors.text.primary }} />
+                                </ListItemIcon>
+                                <ListItemText>Enviar resumen diario</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    handleOpenNotifications();
+                                    handleBoardMenuClose();
+                                }}
+                                sx={{ '&:hover': { bgcolor: colors.bg.hover } }}
+                            >
+                                <ListItemIcon>
+                                    <Notifications fontSize="small" sx={{ color: colors.text.primary }} />
+                                </ListItemIcon>
+                                <ListItemText>Notificaciones</ListItemText>
                             </MenuItem>
                         </Menu>
+                        <NotificationBell
+                            anchorEl={notificationsAnchorEl}
+                            open={notificationsOpen}
+                            onClose={() => {
+                                setNotificationsOpen(false);
+                                setNotificationsAnchorEl(null);
+                            }}
+                            hideButton
+                        />
                     </div>
                 </div>
             </div>
@@ -343,6 +390,21 @@ export const BoardPage = () => {
                     </a>
                 </div>
             </footer>
+
+            <Snackbar
+                open={Boolean(summaryMessage)}
+                autoHideDuration={3500}
+                onClose={() => setSummaryMessage(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSummaryMessage(null)}
+                    severity={summaryMessage?.type || 'info'}
+                    sx={{ width: '100%' }}
+                >
+                    {summaryMessage?.text}
+                </Alert>
+            </Snackbar>
 
             {/* Modal de compartir */}
             <ShareBoardModal
@@ -388,7 +450,7 @@ export const BoardPage = () => {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
                     {backgroundOptions.map((option) => (
                         <Button
-                            key={option.name}
+                            key={`${option.name}-${option.value}`}
                             onClick={() => handleBackgroundChange(option.value)}
                             sx={{
                                 height: { xs: 60, sm: 80 },

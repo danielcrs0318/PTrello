@@ -35,17 +35,6 @@ export const Dashboard = () => {
         signOut();
     };
 
-    const handleCheckNotifications = async () => {
-        handleMenuClose();
-        try {
-            const response = await apiClient.post('/notifications/check');
-            alert('Verificación completada. Revisa la consola del backend para ver los detalles.');
-            console.log('Resultado:', response.data);
-        } catch (error) {
-            console.error('Error al verificar notificaciones:', error);
-            alert('Error al verificar notificaciones: ' + error.message);
-        }
-    };
     const handleSendDailySummary = async () => {
         handleMenuClose();
         try {
@@ -169,15 +158,6 @@ export const Dashboard = () => {
                                         </div>
                                     </MenuItem>
                                     <Divider sx={{ borderColor: colors.border.primary }} />
-                                    <MenuItem 
-                                        onClick={handleCheckNotifications} 
-                                        sx={{ 
-                                            color: colors.text.primary,
-                                            '&:hover': { bgcolor: colors.bg.hover } 
-                                        }}
-                                    >
-                                        <ListItemText>Verificar notificaciones</ListItemText>
-                                    </MenuItem>
                                     <MenuItem 
                                         onClick={handleSendDailySummary} 
                                         sx={{ 

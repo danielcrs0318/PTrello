@@ -253,6 +253,7 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
             const completionPercentage = totalTasks > 0 ? Math.round((board.completed / totalTasks) * 100) : 0;
           const completedSubtasks = board.completedSubtasks || 0;
           const completedSubtasksBy = Array.isArray(board.completedSubtasksBy) ? board.completedSubtasksBy : [];
+          const tasksSummary = Array.isArray(board.tasksSummary) ? board.tasksSummary : [];
           const subtasksHtml = completedSubtasks > 0
             ? `
               <div style="margin-top: 18px; padding: 14px; background: #f7f7ff; border-radius: 8px; border: 1px solid #e4e4f7;">
@@ -268,6 +269,38 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                     </tr>
                   `).join('')}
                 </table>
+              </div>
+            `
+            : '';
+
+          const tasksHtml = tasksSummary.length > 0
+            ? `
+              <div style="margin-top: 18px; padding: 14px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px;">
+                  Tareas y responsables
+                </div>
+                ${tasksSummary.map(task => `
+                  <div style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <div style="font-size: 13px; color: #111; font-weight: 600;">${task.title}</div>
+                    <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                      Estado: ${task.column}
+                    </div>
+                    <div style="font-size: 12px; color: #374151; margin-top: 4px;">
+                      Responsable(s):&nbsp;${task.assignees.length ? task.assignees.join(', ') : 'Sin responsable'}
+                    </div>
+                    ${task.subtasks && task.subtasks.length > 0 ? `
+                      <div style="margin-top: 6px; padding-left: 10px;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Subtareas</div>
+                        ${task.subtasks.map(st => `
+                          <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: #374151; padding: 2px 0;">
+                            <span>${st.completed ? '✅' : '⬜'} ${st.title}</span>
+                            <span style="color: #6b7280; padding-left: 8px;">${st.assignees.length ? st.assignees.join(', ') : 'Sin responsable'}</span>
+                          </div>
+                        `).join('')}
+                      </div>
+                    ` : ''}
+                  </div>
+                `).join('')}
               </div>
             `
             : '';
@@ -311,6 +344,7 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                         </div>
                     </div>
                       ${subtasksHtml}
+                      ${tasksHtml}
                 </div>
             `;
         });

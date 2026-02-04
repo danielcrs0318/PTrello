@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     DndContext,
@@ -80,6 +80,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCreatingColumn, setIsCreatingColumn] = useState(false);
     const [newColumnName, setNewColumnName] = useState('');
+    const dragOriginRef = useRef(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -237,6 +238,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
         if (active.data.current?.type === 'task') {
             const columnProgress = metrics.columnProgress?.[active.data.current.columnId] ?? 0;
             setActiveTask({ ...active.data.current.task, progress: columnProgress });
+            dragOriginRef.current = active.data.current.columnId || null;
         }
     };
 
@@ -251,7 +253,38 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
         setSelectedTask(null);
     };
 
-    const handleTaskUpdate = async () => {
+    const handleTaskUpdate = async (payload) => {
+        if (payload?.type === 'subtask-updated' && payload.taskId && payload.subtask) {
+            updateTasksState((currentMap) => {
+                const columnId = findColumnIdByTaskId(currentMap, payload.taskId);
+                if (!columnId) {
+                    return currentMap;
+                }
+
+                const nextTasks = (currentMap[columnId] || []).map((task) => {
+                    const nextSubtasks = (task.subtasks || []).map((st) =>
+                        st.id === payload.subtask.id ? payload.subtask : st
+                    );
+                    return { ...task, subtasks: nextSubtasks };
+                });
+
+                return {
+                    ...currentMap,
+                    [columnId]: nextTasks,
+                };
+            });
+
+            setSelectedTask((current) => {
+                if (!current || current.id !== payload.taskId) return current;
+                const nextSubtasks = (current.subtasks || []).map((st) =>
+                    st.id === payload.subtask.id ? payload.subtask : st
+                );
+                return { ...current, subtasks: nextSubtasks };
+            });
+
+            return;
+        }
+
         try {
             const response = await apiClient.get(`/boards/${boardId}`);
             const normalisedColumns = normaliseColumns(response.data.columns);
@@ -395,6 +428,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
         setActiveTask(null);
 
         if (!over) {
+            dragOriginRef.current = null;
             return;
         }
 
@@ -405,10 +439,11 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
             return;
         }
 
-        const originColumnId = findColumnIdByTaskId(tasksByColumn, active.id) ?? activeData.columnId;
+        const originColumnId = dragOriginRef.current || activeData.columnId || findColumnIdByTaskId(tasksByColumn, active.id);
         const targetColumnId = overData?.columnId;
 
         if (!originColumnId || !targetColumnId) {
+            dragOriginRef.current = null;
             return;
         }
 
@@ -471,6 +506,8 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
                 setMetrics(computeMetrics(columns, previousState));
             }
         }
+
+        dragOriginRef.current = null;
     };
 
     if (loading) {

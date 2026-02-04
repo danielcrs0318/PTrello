@@ -73,6 +73,29 @@ router.post(
 );
 
 /**
+ * POST /notifications/daily-report
+ * Envía manualmente el resumen diario a todos los usuarios
+ */
+router.post(
+    '/daily-report',
+    requireAuth,
+    async (req, res) => {
+        try {
+            await sendDailyReports();
+            return res.json({
+                mensaje: 'Resumen diario enviado manualmente',
+                success: true
+            });
+        } catch (error) {
+            return res.status(500).json({
+                mensaje: 'Error al enviar el resumen diario',
+                error: error.message
+            });
+        }
+    }
+);
+
+/**
  * POST /notifications/test
  * Envía un email de prueba
  */

@@ -26,21 +26,23 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from '../providers/ThemeProvider';
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ anchorEl: externalAnchorEl, open: externalOpen, onClose: externalOnClose, hideButton = false }) => {
     const { colors } = useTheme();
     const [anchorEl, setAnchorEl] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
 
-    const open = Boolean(anchorEl);
+    const isControlled = externalAnchorEl !== undefined || externalOpen !== undefined;
+    const open = isControlled ? Boolean(externalOpen) : Boolean(anchorEl);
+    const resolvedAnchorEl = isControlled ? externalAnchorEl : anchorEl;
+
 
     useEffect(() => {
-        fetchUnreadCount();
-        // Actualizar contador cada 30 segundos
-        const interval = setInterval(fetchUnreadCount, 30000);
-        return () => clearInterval(interval);
-    }, []);
+        if (open) {
+            fetchNotifications();
+        }
+    }, [open]);
 
     const fetchUnreadCount = async () => {
         try {
@@ -64,11 +66,16 @@ export const NotificationBell = () => {
     };
 
     const handleClick = (event) => {
+        if (hideButton) return;
         setAnchorEl(event.currentTarget);
         fetchNotifications();
     };
 
     const handleClose = () => {
+        if (isControlled) {
+            externalOnClose?.();
+            return;
+        }
         setAnchorEl(null);
     };
 
@@ -145,19 +152,21 @@ export const NotificationBell = () => {
 
     return (
         <>
-            <IconButton
-                onClick={handleClick}
-                size="small"
-                sx={{ color: colors.text.primary }}
-            >
-                <Badge badgeContent={unreadCount} color="error">
-                    <NotificationsIcon />
-                </Badge>
-            </IconButton>
+            {!hideButton && (
+                <IconButton
+                    onClick={handleClick}
+                    size="small"
+                    sx={{ color: colors.text.primary }}
+                >
+                    <Badge badgeContent={unreadCount} color="error">
+                        <NotificationsIcon />
+                    </Badge>
+                </IconButton>
+            )}
 
             <Popover
                 open={open}
-                anchorEl={anchorEl}
+                anchorEl={resolvedAnchorEl}
                 onClose={handleClose}
                 anchorOrigin={{
                     vertical: 'bottom',

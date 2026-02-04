@@ -258,10 +258,14 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
             const response = await apiClient.put(`/tasks/subtasks/${subtask.id}`, {
                 completed: !subtask.completed,
             });
-            setSubtasks(subtasks.map(st => 
+            setSubtasks((current) => current.map(st => 
                 st.id === subtask.id ? response.data : st
             ));
-            onTaskUpdate?.();
+            onTaskUpdate?.({
+                type: 'subtask-updated',
+                taskId: task?.id,
+                subtask: response.data,
+            });
         } catch (error) {
             console.error('Error al actualizar subtarea:', error);
         }
