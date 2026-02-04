@@ -8,6 +8,7 @@ require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
+const path = require('path');
 
 // Configuraciones y servicios
 const passport = require('./configuraciones/passport');
@@ -19,6 +20,7 @@ const boardRoutes = require('./rutas/boardRoutes');
 const taskRoutes = require('./rutas/taskRoutes');
 const notificationRoutes = require('./rutas/notificationRoutes');
 const boardMemberRoutes = require('./rutas/boardMemberRoutes');
+const imageRoutes = require('./rutas/imageRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +35,7 @@ app.use(corsOrigins === '*'
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(passport.initialize());
+app.use('/img', express.static(path.join(__dirname, '..', 'public', 'img')));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/auth', authRoutes);
@@ -40,6 +43,7 @@ app.use('/boards', boardRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/board-members', boardMemberRoutes);
+app.use('/', imageRoutes);
 
 app.use((_req, res) => res.status(404).json({ mensaje: 'Recurso no encontrado.' }));
 

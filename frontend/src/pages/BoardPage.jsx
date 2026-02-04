@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MoreHoriz, FilterList, ArrowBack, Star, PersonAdd, Palette, Edit, Delete, GitHub, Send, Notifications } from '@mui/icons-material';
+import { Menu as MenuIcon, FilterList, ArrowBack, Star, PersonAdd, Palette, Edit, Delete, GitHub, Send, Notifications } from '@mui/icons-material';
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider, Popover, Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert } from '@mui/material';
 
 import { BoardView } from '../components/BoardView.jsx';
@@ -275,7 +275,7 @@ export const BoardPage = () => {
                             className="text-white/90 hover:bg-white/10"
                             title="Más opciones"
                         >
-                            <MoreHoriz fontSize="small" />
+                            <MenuIcon fontSize="small" />
                         </IconButton>
                         
                         {/* Menú de opciones del tablero (vacío por ahora, para futuras funcionalidades) */}

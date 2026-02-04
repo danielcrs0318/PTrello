@@ -15,6 +15,7 @@ const Notification = require('../modelos/Notification');
 const PasswordResetPin = require('../modelos/PasswordResetPin');
 const TaskAssignee = require('../modelos/TaskAssignee');
 const SubtaskAssignee = require('../modelos/SubtaskAssignee');
+const Image = require('../modelos/Image');
 
 let initialized = false;
 
@@ -215,4 +216,5 @@ module.exports = {
     PasswordResetPin,
     TaskAssignee,
     SubtaskAssignee,
+    Image,
 };

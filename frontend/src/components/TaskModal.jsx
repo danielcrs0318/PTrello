@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
     Dialog, 
     DialogTitle, 
@@ -24,7 +24,7 @@ import {
     InputAdornment,
     DialogActions
 } from '@mui/material';
-import { Close, Add, CheckBox, CheckBoxOutlineBlank, Delete, CalendarMonth, Palette, Edit, DescriptionOutlined, MoreVert, Check, Search } from '@mui/icons-material';
+import { Close, Add, CheckBox, CheckBoxOutlineBlank, Delete, CalendarMonth, Palette, Edit, DescriptionOutlined, MoreVert, Check, Search, Photo } from '@mui/icons-material';
 import { StaticDateTimePicker } from '@mui/x-date-pickers/StaticDateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -60,6 +60,13 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
     const [subtaskAssigneeSearch, setSubtaskAssigneeSearch] = useState('');
     const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
     const [subtaskAssigneeMenuOpen, setSubtaskAssigneeMenuOpen] = useState(false);
+    const [taskImages, setTaskImages] = useState([]);
+    const [subtaskImages, setSubtaskImages] = useState({});
+    const [uploadingTaskImages, setUploadingTaskImages] = useState(false);
+    const [uploadingSubtaskImages, setUploadingSubtaskImages] = useState({});
+    const taskUploadInputRef = useRef(null);
+    const subtaskUploadInputRef = useRef(null);
+    const [subtaskUploadTarget, setSubtaskUploadTarget] = useState(null);
     const [tempDate, setTempDate] = useState(null);
     const [subtaskMenuAnchorEl, setSubtaskMenuAnchorEl] = useState(null);
     const [subtaskMenuTarget, setSubtaskMenuTarget] = useState(null);
@@ -85,7 +92,38 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
         setTaskAssigneeIds(task?.assignees?.map((assignee) => assignee.id) || []);
         setEditedTitle(task?.title || '');
         setIsEditingTitle(false);
+        setTaskImages([]);
+        setSubtaskImages({});
     }, [task]);
+
+    useEffect(() => {
+        if (!open || !task || !boardId) return;
+
+        const fetchTaskImages = async () => {
+            try {
+                const response = await apiClient.get(`/projects/${boardId}/tasks/${task.id}/images`);
+                setTaskImages(Array.isArray(response.data) ? response.data : []);
+            } catch (error) {
+                console.error('Error al cargar imágenes de tarea:', error);
+            }
+        };
+
+        const fetchSubtaskImages = async () => {
+            const nextMap = {};
+            await Promise.all((task.subtasks || []).map(async (subtask) => {
+                try {
+                    const response = await apiClient.get(`/projects/${boardId}/tasks/${task.id}/subtasks/${subtask.id}/images`);
+                    nextMap[subtask.id] = Array.isArray(response.data) ? response.data : [];
+                } catch (error) {
+                    console.error('Error al cargar imágenes de subtarea:', error);
+                }
+            }));
+            setSubtaskImages(nextMap);
+        };
+
+        fetchTaskImages();
+        fetchSubtaskImages();
+    }, [open, task, boardId]);
 
     useEffect(() => {
         if (!open || !boardId) return;
@@ -418,6 +456,75 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
         return selectedList.map(resolveMemberName).join(', ');
     };
 
+    const handleUploadTaskImages = async (files) => {
+        if (!task || !boardId || !files?.length) return;
+        setUploadingTaskImages(true);
+        try {
+            const formData = new FormData();
+            Array.from(files).forEach((file) => formData.append('images', file));
+            const response = await apiClient.post(
+                `/projects/${boardId}/tasks/${task.id}/images`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' } },
+            );
+            const uploaded = response.data?.images || [];
+            setTaskImages((current) => [...current, ...uploaded]);
+        } catch (error) {
+            console.error('Error al subir imágenes de tarea:', error);
+        } finally {
+            setUploadingTaskImages(false);
+        }
+    };
+
+    const handleUploadSubtaskImages = async (subtaskId, files) => {
+        if (!task || !boardId || !subtaskId || !files?.length) return;
+        setUploadingSubtaskImages((prev) => ({ ...prev, [subtaskId]: true }));
+        try {
+            const formData = new FormData();
+            Array.from(files).forEach((file) => formData.append('images', file));
+            const response = await apiClient.post(
+                `/projects/${boardId}/tasks/${task.id}/subtasks/${subtaskId}/images`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' } },
+            );
+            const uploaded = response.data?.images || [];
+            setSubtaskImages((current) => ({
+                ...current,
+                [subtaskId]: [...(current[subtaskId] || []), ...uploaded],
+            }));
+        } catch (error) {
+            console.error('Error al subir imágenes de subtarea:', error);
+        } finally {
+            setUploadingSubtaskImages((prev) => ({ ...prev, [subtaskId]: false }));
+        }
+    };
+
+    const handleTriggerSubtaskUpload = (subtaskId) => {
+        setSubtaskUploadTarget(subtaskId);
+        if (subtaskUploadInputRef.current) {
+            subtaskUploadInputRef.current.click();
+        }
+    };
+
+    const handleDeleteImage = async (imageId, scope, subtaskId) => {
+        if (!imageId) return;
+        try {
+            await apiClient.delete(`/images/${imageId}`);
+            if (scope === 'task') {
+                setTaskImages((current) => current.filter((img) => img.id !== imageId));
+                return;
+            }
+            if (scope === 'subtask' && subtaskId) {
+                setSubtaskImages((current) => ({
+                    ...current,
+                    [subtaskId]: (current[subtaskId] || []).filter((img) => img.id !== imageId),
+                }));
+            }
+        } catch (error) {
+            console.error('Error al eliminar imagen:', error);
+        }
+    };
+
     const filterMembers = (query) => {
         const normalizedQuery = query.trim().toLowerCase();
         if (!normalizedQuery) return members;
@@ -701,6 +808,85 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                         </Button>
                     </Box>
                 </Box>
+                <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ color: '#9fadbc', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Photo fontSize="small" />
+                        Imágenes de la tarea
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+                        {taskImages.length === 0 && (
+                            <Typography variant="caption" sx={{ color: '#9fadbc' }}>
+                                Sin imágenes cargadas.
+                            </Typography>
+                        )}
+                        {taskImages.map((image) => (
+                            <Box
+                                key={image.id}
+                                sx={{
+                                    position: 'relative',
+                                    width: 96,
+                                    height: 72,
+                                    borderRadius: 1,
+                                    overflow: 'hidden',
+                                    border: '1px solid #3a4149',
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(image.imageUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        padding: 0,
+                                        border: 'none',
+                                        background: 'transparent',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <img
+                                        src={image.imageUrl}
+                                        alt={image.imageName}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                    />
+                                </button>
+                                <IconButton
+                                    size="small"
+                                    onClick={() => handleDeleteImage(image.id, 'task')}
+                                    sx={{ position: 'absolute', top: 2, right: 2, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                                >
+                                    <Delete fontSize="inherit" />
+                                </IconButton>
+                            </Box>
+                        ))}
+                    </Box>
+                    <Button
+                        variant="outlined"
+                        disabled={uploadingTaskImages}
+                        onClick={() => taskUploadInputRef.current?.click()}
+                        sx={{
+                            color: '#b6c2cf',
+                            borderColor: '#3c434a',
+                            textTransform: 'none',
+                            '&:hover': { borderColor: '#579dff', color: 'white' },
+                        }}
+                    >
+                        {uploadingTaskImages ? 'Subiendo...' : 'Subir imágenes'}
+                    </Button>
+                    <input
+                        ref={taskUploadInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        multiple
+                        hidden
+                        onChange={(e) => {
+                            handleUploadTaskImages(e.target.files);
+                            e.target.value = '';
+                        }}
+                    />
+                </Box>
 
                 {/* Sección de subtareas */}
                 <Box sx={{ mb: 2 }}>
@@ -966,6 +1152,71 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                                 </MenuItem>
                                                             )}
                                                         </TextField>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                <Photo fontSize="small" style={{ color: '#9fadbc' }} />
+                                                                <Typography variant="caption" sx={{ color: '#9fadbc', fontWeight: 600 }}>
+                                                                    Imágenes de subtarea
+                                                                </Typography>
+                                                            </Box>
+                                                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                                                {(subtaskImages[subtask.id] || []).length === 0 && (
+                                                                    <Typography variant="caption" sx={{ color: '#9fadbc' }}>
+                                                                        Sin imágenes cargadas.
+                                                                    </Typography>
+                                                                )}
+                                                                {(subtaskImages[subtask.id] || []).map((image) => (
+                                                                    <Box
+                                                                        key={image.id}
+                                                                        sx={{
+                                                                            position: 'relative',
+                                                                            width: 88,
+                                                                            height: 64,
+                                                                            borderRadius: 1,
+                                                                            overflow: 'hidden',
+                                                                            border: '1px solid #3a4149',
+                                                                        }}
+                                                                    >
+                                                                        <img
+                                                                            src={image.imageUrl}
+                                                                            alt={image.imageName}
+                                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                        />
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            onClick={() => handleDeleteImage(image.id, 'subtask', subtask.id)}
+                                                                            sx={{ position: 'absolute', top: 2, right: 2, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                                                                        >
+                                                                            <Delete fontSize="inherit" />
+                                                                        </IconButton>
+                                                                    </Box>
+                                                                ))}
+                                                            </Box>
+                                                            <Button
+                                                                variant="outlined"
+                                                                component="label"
+                                                                disabled={uploadingSubtaskImages[subtask.id]}
+                                                                sx={{
+                                                                    color: '#b6c2cf',
+                                                                    borderColor: '#3c434a',
+                                                                    textTransform: 'none',
+                                                                    '&:hover': { borderColor: '#579dff', color: 'white' },
+                                                                    alignSelf: 'flex-start',
+                                                                }}
+                                                            >
+                                                                {uploadingSubtaskImages[subtask.id] ? 'Subiendo...' : 'Subir imágenes'}
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/png,image/jpeg,image/jpg"
+                                                                    multiple
+                                                                    hidden
+                                                                    onChange={(e) => {
+                                                                        handleUploadSubtaskImages(subtask.id, e.target.files);
+                                                                        e.target.value = '';
+                                                                    }}
+                                                                />
+                                                            </Button>
+                                                        </Box>
                                                         <Box sx={{ display: 'flex', gap: 1 }}>
                                                             <Button
                                                                 size="small"
@@ -1015,6 +1266,67 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                             <span style={{ color: '#9fadbc', fontSize: '0.7rem' }}>
                                                                 Responsables: {subtask.assignees.map((assignee) => assignee.displayName).join(', ')}
                                                             </span>
+                                                        )}
+                                                        {uploadingSubtaskImages[subtask.id] && (
+                                                            <Typography variant="caption" sx={{ color: '#9fadbc', mt: 0.5 }}>
+                                                                Subiendo imagen...
+                                                            </Typography>
+                                                        )}
+                                                        {(subtaskImages[subtask.id] || []).length > 0 && (
+                                                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+                                                                {(subtaskImages[subtask.id] || []).map((image) => (
+                                                                    <Box
+                                                                        key={image.id}
+                                                                        sx={{
+                                                                            position: 'relative',
+                                                                            width: 84,
+                                                                            height: 64,
+                                                                            borderRadius: 1,
+                                                                            overflow: 'hidden',
+                                                                            border: '1px solid #3a4149',
+                                                                        }}
+                                                                    >
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                window.open(image.imageUrl, '_blank', 'noopener,noreferrer');
+                                                                            }}
+                                                                            style={{
+                                                                                width: '100%',
+                                                                                height: '100%',
+                                                                                padding: 0,
+                                                                                border: 'none',
+                                                                                background: 'transparent',
+                                                                                cursor: 'pointer',
+                                                                            }}
+                                                                        >
+                                                                            <img
+                                                                                src={image.imageUrl}
+                                                                                alt={image.imageName}
+                                                                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                                                            />
+                                                                        </button>
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleDeleteImage(image.id, 'subtask', subtask.id);
+                                                                            }}
+                                                                            sx={{
+                                                                                position: 'absolute',
+                                                                                top: 2,
+                                                                                right: 2,
+                                                                                color: 'white',
+                                                                                bgcolor: 'rgba(0,0,0,0.5)',
+                                                                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                                                            }}
+                                                                        >
+                                                                            <Delete fontSize="inherit" />
+                                                                        </IconButton>
+                                                                    </Box>
+                                                                ))}
+                                                            </Box>
                                                         )}
                                                     </Box>
                                                 )}
@@ -1311,6 +1623,16 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                 <MenuItem
                     onClick={() => {
                         if (subtaskMenuTarget) {
+                            handleTriggerSubtaskUpload(subtaskMenuTarget.id);
+                        }
+                        handleSubtaskMenuClose();
+                    }}
+                >
+                    <Photo fontSize="small" style={{ marginRight: 8 }} /> Imagen
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        if (subtaskMenuTarget) {
                             handleDeleteSubtask(subtaskMenuTarget.id);
                         }
                         handleSubtaskMenuClose();
@@ -1320,6 +1642,20 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                     <Delete fontSize="small" style={{ marginRight: 8 }} /> Eliminar
                 </MenuItem>
             </Menu>
+
+            <input
+                ref={subtaskUploadInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                multiple
+                hidden
+                onChange={(e) => {
+                    if (subtaskUploadTarget) {
+                        handleUploadSubtaskImages(subtaskUploadTarget, e.target.files);
+                    }
+                    e.target.value = '';
+                }}
+            />
 
             {/* Diálogo de confirmación para eliminar tarea */}
             <Dialog

@@ -11,3 +11,5 @@ logs
 *.log
 pids
 *.pid
+public/img/
+tmp
