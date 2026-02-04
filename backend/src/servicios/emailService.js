@@ -247,6 +247,13 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
             day: 'numeric'
         });
 
+    const formatDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toLocaleDateString('es-ES');
+    };
+
         let boardsHtml = '';
         boardsSummary.forEach(board => {
             const totalTasks = board.completed + board.inProgress + board.pending;
@@ -254,6 +261,7 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
           const completedSubtasks = board.completedSubtasks || 0;
           const completedSubtasksBy = Array.isArray(board.completedSubtasksBy) ? board.completedSubtasksBy : [];
           const tasksSummary = Array.isArray(board.tasksSummary) ? board.tasksSummary : [];
+      const columnsSummary = Array.isArray(board.columnsSummary) ? board.columnsSummary : [];
           const subtasksHtml = completedSubtasks > 0
             ? `
               <div style="margin-top: 18px; padding: 14px; background: #f7f7ff; border-radius: 8px; border: 1px solid #e4e4f7;">
@@ -273,6 +281,70 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
             `
             : '';
 
+          const columnsHtml = columnsSummary.length > 0
+            ? `
+              <div style="margin-top: 18px; padding: 14px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px;">
+                  Columnas, tareas y subtareas
+                </div>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr>
+                      <th style="text-align: left; font-size: 12px; color: #6b7280; padding: 8px; border-bottom: 1px solid #e5e7eb;">Columna</th>
+                      <th style="text-align: left; font-size: 12px; color: #6b7280; padding: 8px; border-bottom: 1px solid #e5e7eb;">Tareas (detalle)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${columnsSummary.map(col => `
+                      <tr>
+                        <td style="vertical-align: top; width: 22%; padding: 8px; border-bottom: 1px solid #f0f0f0; font-weight: 700; color: #111; font-size: 12px;">
+                          ${col.name}
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #f0f0f0;">
+                          ${col.tasks.length === 0 ? `
+                            <div style="font-size: 12px; color: #6b7280;">Sin tareas</div>
+                          ` : col.tasks.map(task => `
+                            <div style="padding: 6px 0; border-bottom: 1px dashed #e5e7eb;">
+                              <div style="font-size: 12px; color: #111; font-weight: 600;">${task.title}</div>
+                              ${task.description ? `<div style="font-size: 12px; color: #4b5563; margin-top: 3px;">${task.description}</div>` : ''}
+                              ${task.dueDate || task.color ? `
+                                <div style="font-size: 12px; color: #6b7280; margin-top: 3px;">
+                                  ${task.dueDate ? `Vence: ${formatDate(task.dueDate)}` : ''}${task.dueDate && task.color ? ' • ' : ''}${task.color ? `Color: ${task.color}` : ''}
+                                </div>
+                              ` : ''}
+                              <div style="font-size: 12px; color: #374151; margin-top: 4px;">
+                                Responsable(s):&nbsp;${task.assignees.length ? task.assignees.join(', ') : 'Sin responsable'}
+                              </div>
+                              ${task.subtasks && task.subtasks.length > 0 ? `
+                                <div style="margin-top: 6px; padding-left: 8px;">
+                                  <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Subtareas</div>
+                                  ${task.subtasks.map(st => `
+                                    <div style="font-size: 12px; color: #374151; padding: 2px 0;">
+                                      <div style="display: flex; justify-content: space-between; gap: 8px;">
+                                        <span>${st.completed ? '✅' : '⬜'} ${st.title}</span>
+                                        <span style="color: #6b7280;">&nbsp;—&nbsp;${st.assignees.length ? st.assignees.join(', ') : 'Sin responsable'}</span>
+                                      </div>
+                                      ${st.description ? `<div style="color: #4b5563; margin-top: 2px;">${st.description}</div>` : ''}
+                                      ${st.dueDate || st.color ? `
+                                        <div style="color: #6b7280; margin-top: 2px;">
+                                          ${st.dueDate ? `Vence: ${formatDate(st.dueDate)}` : ''}${st.dueDate && st.color ? ' • ' : ''}${st.color ? `Color: ${st.color}` : ''}
+                                        </div>
+                                      ` : ''}
+                                    </div>
+                                  `).join('')}
+                                </div>
+                              ` : ''}
+                            </div>
+                          `).join('')}
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `
+            : '';
+
           const tasksHtml = tasksSummary.length > 0
             ? `
               <div style="margin-top: 18px; padding: 14px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
@@ -282,6 +354,12 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                 ${tasksSummary.map(task => `
                   <div style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
                     <div style="font-size: 13px; color: #111; font-weight: 600;">${task.title}</div>
+                    ${task.description ? `<div style="font-size: 12px; color: #4b5563; margin-top: 3px;">${task.description}</div>` : ''}
+                    ${task.dueDate || task.color ? `
+                      <div style="font-size: 12px; color: #6b7280; margin-top: 3px;">
+                        ${task.dueDate ? `Vence: ${formatDate(task.dueDate)}` : ''}${task.dueDate && task.color ? ' • ' : ''}${task.color ? `Color: ${task.color}` : ''}
+                      </div>
+                    ` : ''}
                     <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
                       Estado: ${task.column}
                     </div>
@@ -294,8 +372,14 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                         ${task.subtasks.map(st => `
                           <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: #374151; padding: 2px 0;">
                             <span>${st.completed ? '✅' : '⬜'} ${st.title}</span>
-                            <span style="color: #6b7280; padding-left: 8px;">${st.assignees.length ? st.assignees.join(', ') : 'Sin responsable'}</span>
+                            <span style="color: #6b7280; padding-left: 8px;">&nbsp;—&nbsp;${st.assignees.length ? st.assignees.join(', ') : 'Sin responsable'}</span>
                           </div>
+                          ${st.description ? `<div style="font-size: 12px; color: #4b5563; padding-left: 10px;">${st.description}</div>` : ''}
+                          ${st.dueDate || st.color ? `
+                            <div style="font-size: 12px; color: #6b7280; padding-left: 10px;">
+                              ${st.dueDate ? `Vence: ${formatDate(st.dueDate)}` : ''}${st.dueDate && st.color ? ' • ' : ''}${st.color ? `Color: ${st.color}` : ''}
+                            </div>
+                          ` : ''}
                         `).join('')}
                       </div>
                     ` : ''}
@@ -311,28 +395,28 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                         ${board.name}
                     </h3>
                     
-                    <div style="display: table; width: 100%; margin-bottom: 15px;">
-                        <div style="display: table-row;">
-                            <div style="display: table-cell; width: 33.33%; padding: 10px; text-align: center; border-right: 1px solid #e0e0e0;">
-                                <div style="font-size: 32px; font-weight: bold; color: #4caf50; margin-bottom: 5px;">
-                                    ${board.completed}
-                                </div>
-                                <div style="color: #666; font-size: 14px;">Finalizadas</div>
-                            </div>
-                            <div style="display: table-cell; width: 33.33%; padding: 10px; text-align: center; border-right: 1px solid #e0e0e0;">
-                                <div style="font-size: 32px; font-weight: bold; color: #2196f3; margin-bottom: 5px;">
-                                    ${board.inProgress}
-                                </div>
-                                <div style="color: #666; font-size: 14px;">En progreso</div>
-                            </div>
-                            <div style="display: table-cell; width: 33.33%; padding: 10px; text-align: center;">
-                                <div style="font-size: 32px; font-weight: bold; color: #ff9800; margin-bottom: 5px;">
-                                    ${board.pending}
-                                </div>
-                                <div style="color: #666; font-size: 14px;">Pendientes</div>
-                            </div>
-                        </div>
-                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                      <thead>
+                        <tr>
+                          <th style="background: #7CFC00; color: #1f2937; font-size: 12px; font-weight: 700; padding: 8px; text-align: center;">Finalizadas</th>
+                          <th style="background: #7CFC00; color: #1f2937; font-size: 12px; font-weight: 700; padding: 8px; text-align: center;">En progreso</th>
+                          <th style="background: #7CFC00; color: #1f2937; font-size: 12px; font-weight: 700; padding: 8px; text-align: center;">Pendientes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style="text-align: center; padding: 10px; font-size: 24px; font-weight: 700; color: #4caf50; border: 1px solid #e5e7eb;">
+                            ${board.completed}
+                          </td>
+                          <td style="text-align: center; padding: 10px; font-size: 24px; font-weight: 700; color: #2196f3; border: 1px solid #e5e7eb;">
+                            ${board.inProgress}
+                          </td>
+                          <td style="text-align: center; padding: 10px; font-size: 24px; font-weight: 700; color: #ff9800; border: 1px solid #e5e7eb;">
+                            ${board.pending}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                     
                     <div style="background: #f5f5f5; border-radius: 6px; padding: 10px; margin-top: 15px;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Progreso del día</div>
@@ -343,8 +427,8 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                             ${completionPercentage}% completado
                         </div>
                     </div>
-                      ${subtasksHtml}
-                      ${tasksHtml}
+                        ${subtasksHtml}
+                        ${columnsHtml || tasksHtml}
                 </div>
             `;
         });

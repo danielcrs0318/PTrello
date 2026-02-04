@@ -230,9 +230,11 @@ async function sendDailyReports() {
                     let completedSubtasks = 0;
                     const completedSubtasksBy = new Map();
                     const tasksSummary = [];
+                    const columnsSummary = [];
 
                     columns.forEach(column => {
                         const columnNameLower = column.name.toLowerCase();
+                        const columnTasks = [];
                         
                         column.tasks.forEach(task => {
                             const taskAssignees = Array.isArray(task.assignees) && task.assignees.length > 0
@@ -248,6 +250,9 @@ async function sendDailyReports() {
 
                                 return {
                                     title: subtask.title,
+                                    description: subtask.description || null,
+                                    dueDate: subtask.dueDate || null,
+                                    color: subtask.color || null,
                                     completed: subtask.completed,
                                     assignees: assigneeNames,
                                 };
@@ -255,9 +260,21 @@ async function sendDailyReports() {
 
                             tasksSummary.push({
                                 title: task.title,
+                                description: task.description || null,
+                                dueDate: task.dueDate || null,
+                                color: task.color || null,
                                 assignees: taskAssigneeNames,
                                 subtasks: subtasksSummary,
                                 column: column.name,
+                            });
+
+                            columnTasks.push({
+                                title: task.title,
+                                description: task.description || null,
+                                dueDate: task.dueDate || null,
+                                color: task.color || null,
+                                assignees: taskAssigneeNames,
+                                subtasks: subtasksSummary,
                             });
 
                             // Determinar el estado basado en el nombre de la columna
@@ -297,6 +314,11 @@ async function sendDailyReports() {
                                 });
                             });
                         });
+
+                        columnsSummary.push({
+                            name: column.name,
+                            tasks: columnTasks,
+                        });
                     });
 
                     // Solo incluir tableros con actividad
@@ -312,6 +334,7 @@ async function sendDailyReports() {
                                 count
                             })),
                             tasksSummary,
+                            columnsSummary,
                         });
                     }
                 }
