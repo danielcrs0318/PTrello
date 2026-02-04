@@ -6,11 +6,13 @@ import {
     IconButton, 
     TextField, 
     Checkbox, 
+    Avatar,
     List, 
     ListItem, 
     ListItemButton, 
     ListItemIcon, 
     ListItemText,
+    ListSubheader,
     LinearProgress,
     Box,
     Typography,
@@ -19,9 +21,10 @@ import {
     Chip,
     Menu,
     MenuItem,
+    InputAdornment,
     DialogActions
 } from '@mui/material';
-import { Close, Add, CheckBox, CheckBoxOutlineBlank, Delete, CalendarMonth, Palette, Edit, DescriptionOutlined, MoreVert, Check } from '@mui/icons-material';
+import { Close, Add, CheckBox, CheckBoxOutlineBlank, Delete, CalendarMonth, Palette, Edit, DescriptionOutlined, MoreVert, Check, Search } from '@mui/icons-material';
 import { StaticDateTimePicker } from '@mui/x-date-pickers/StaticDateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -53,6 +56,10 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
     const [editedSubtaskAssigneeIds, setEditedSubtaskAssigneeIds] = useState([]);
     const [members, setMembers] = useState([]);
     const [membersLoading, setMembersLoading] = useState(false);
+    const [assigneeSearch, setAssigneeSearch] = useState('');
+    const [subtaskAssigneeSearch, setSubtaskAssigneeSearch] = useState('');
+    const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
+    const [subtaskAssigneeMenuOpen, setSubtaskAssigneeMenuOpen] = useState(false);
     const [tempDate, setTempDate] = useState(null);
     const [subtaskMenuAnchorEl, setSubtaskMenuAnchorEl] = useState(null);
     const [subtaskMenuTarget, setSubtaskMenuTarget] = useState(null);
@@ -407,6 +414,19 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
         return selectedList.map(resolveMemberName).join(', ');
     };
 
+    const filterMembers = (query) => {
+        const normalizedQuery = query.trim().toLowerCase();
+        if (!normalizedQuery) return members;
+        return members.filter((member) => {
+            const name = member.displayName?.toLowerCase() || '';
+            const email = member.email?.toLowerCase() || '';
+            return name.includes(normalizedQuery) || email.includes(normalizedQuery);
+        });
+    };
+
+    const taskAssigneeOptions = filterMembers(assigneeSearch);
+    const subtaskAssigneeOptions = filterMembers(subtaskAssigneeSearch);
+
     if (!task) return null;
 
     return (
@@ -514,6 +534,28 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                         SelectProps={{
                             multiple: true,
                             renderValue: renderAssigneeValue,
+                            open: assigneeMenuOpen,
+                            onOpen: () => setAssigneeMenuOpen(true),
+                            MenuProps: {
+                                disableAutoFocusItem: true,
+                                PaperProps: {
+                                    sx: {
+                                        bgcolor: '#1f2428',
+                                        color: 'white',
+                                        border: '1px solid #2f353c',
+                                        mt: 1,
+                                        minWidth: 300,
+                                    },
+                                },
+                                MenuListProps: {
+                                    dense: true,
+                                    sx: { py: 0 },
+                                },
+                                onClose: () => {
+                                    setAssigneeMenuOpen(false);
+                                    setAssigneeSearch('');
+                                },
+                            },
                         }}
                         sx={{
                             '& .MuiOutlinedInput-root': {
@@ -525,15 +567,93 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                             },
                         }}
                     >
-                        {members.map((member) => (
-                            <MenuItem key={member.id} value={member.id}>
+                        <ListSubheader
+                            component="div"
+                            disableSticky
+                            sx={{
+                                bgcolor: '#1f2428',
+                                color: '#9fadbc',
+                                px: 2,
+                                py: 1.5,
+                                borderBottom: '1px solid #2f353c',
+                            }}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="subtitle2" sx={{ color: '#b6c2cf' }}>
+                                    Miembros
+                                </Typography>
+                                <IconButton
+                                    size="small"
+                                    onClick={() => setAssigneeMenuOpen(false)}
+                                    sx={{ color: '#9fadbc', '&:hover': { color: '#ffffff' } }}
+                                    title="Cerrar"
+                                >
+                                    <Close fontSize="small" />
+                                </IconButton>
+                            </Box>
+                            <TextField
+                                size="small"
+                                placeholder="Buscar miembros"
+                                value={assigneeSearch}
+                                onChange={(e) => setAssigneeSearch(e.target.value)}
+                                fullWidth
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Search sx={{ color: '#9fadbc' }} fontSize="small" />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        bgcolor: '#22272b',
+                                        color: '#b6c2cf',
+                                        '& fieldset': { borderColor: '#3a4149' },
+                                        '&:hover fieldset': { borderColor: '#579dff' },
+                                        '&.Mui-focused fieldset': { borderColor: '#579dff' },
+                                    },
+                                    '& .MuiOutlinedInput-input': {
+                                        py: 0.8,
+                                    },
+                                }}
+                            />
+                        </ListSubheader>
+                        {taskAssigneeOptions.map((member) => (
+                            <MenuItem
+                                key={member.id}
+                                value={member.id}
+                                sx={{
+                                    gap: 1,
+                                    py: 1,
+                                    '&.Mui-selected': { bgcolor: 'rgba(88,166,255,0.12)' },
+                                    '&.Mui-selected:hover': { bgcolor: 'rgba(88,166,255,0.18)' },
+                                }}
+                            >
                                 <Checkbox
                                     checked={taskAssigneeIds.includes(member.id)}
                                     sx={{ color: '#9fadbc', '&.Mui-checked': { color: '#4ade80' } }}
                                 />
-                                <ListItemText primary={`${member.displayName} (${member.role})`} />
+                                <Avatar
+                                    src={member.avatarUrl}
+                                    sx={{ bgcolor: '#667eea', width: 28, height: 28, fontSize: '0.75rem' }}
+                                >
+                                    {member.displayName?.charAt(0) || 'U'}
+                                </Avatar>
+                                <ListItemText
+                                    primary={member.displayName}
+                                    secondary={member.email}
+                                    sx={{
+                                        '& .MuiListItemText-primary': { color: 'white', fontSize: '0.9rem' },
+                                        '& .MuiListItemText-secondary': { color: '#9fadbc', fontSize: '0.75rem' },
+                                    }}
+                                />
                             </MenuItem>
                         ))}
+                        {!membersLoading && taskAssigneeOptions.length === 0 && (
+                            <MenuItem disabled sx={{ opacity: 0.7 }}>
+                                <ListItemText primary="No se encontraron miembros" />
+                            </MenuItem>
+                        )}
                     </TextField>
                 </Box>
                 <Box sx={{ mb: 3 }}>
@@ -662,6 +782,12 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                                 {editingSubtaskId === subtask.id ? (
                                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <Edit fontSize="small" style={{ color: '#9fadbc' }} />
+                                                            <Typography variant="caption" sx={{ color: '#9fadbc', fontWeight: 600 }}>
+                                                                Título
+                                                            </Typography>
+                                                        </Box>
                                                         <TextField
                                                             value={editedSubtaskTitle}
                                                             onChange={(e) => setEditedSubtaskTitle(e.target.value)}
@@ -677,6 +803,12 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                                 },
                                                             }}
                                                         />
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <DescriptionOutlined fontSize="small" style={{ color: '#9fadbc' }} />
+                                                            <Typography variant="caption" sx={{ color: '#9fadbc', fontWeight: 600 }}>
+                                                                Descripción
+                                                            </Typography>
+                                                        </Box>
                                                         <TextField
                                                             value={editedSubtaskDescription}
                                                             onChange={(e) => setEditedSubtaskDescription(e.target.value)}
@@ -694,6 +826,12 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                                 },
                                                             }}
                                                         />
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <CheckBox fontSize="small" style={{ color: '#9fadbc' }} />
+                                                            <Typography variant="caption" sx={{ color: '#9fadbc', fontWeight: 600 }}>
+                                                                Responsable
+                                                            </Typography>
+                                                        </Box>
                                                         <TextField
                                                             select
                                                             size="small"
@@ -703,6 +841,28 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                             SelectProps={{
                                                                 multiple: true,
                                                                 renderValue: renderAssigneeValue,
+                                                                open: subtaskAssigneeMenuOpen,
+                                                                onOpen: () => setSubtaskAssigneeMenuOpen(true),
+                                                                MenuProps: {
+                                                                    disableAutoFocusItem: true,
+                                                                    PaperProps: {
+                                                                        sx: {
+                                                                            bgcolor: '#1f2428',
+                                                                            color: 'white',
+                                                                            border: '1px solid #2f353c',
+                                                                            mt: 1,
+                                                                            minWidth: 280,
+                                                                        },
+                                                                    },
+                                                                    MenuListProps: {
+                                                                        dense: true,
+                                                                        sx: { py: 0 },
+                                                                    },
+                                                                    onClose: () => {
+                                                                        setSubtaskAssigneeMenuOpen(false);
+                                                                        setSubtaskAssigneeSearch('');
+                                                                    },
+                                                                },
                                                             }}
                                                             sx={{
                                                                 '& .MuiOutlinedInput-root': {
@@ -714,15 +874,93 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                                 },
                                                             }}
                                                         >
-                                                            {members.map((member) => (
-                                                                <MenuItem key={member.id} value={member.id}>
+                                                            <ListSubheader
+                                                                component="div"
+                                                                disableSticky
+                                                                sx={{
+                                                                    bgcolor: '#1f2428',
+                                                                    color: '#9fadbc',
+                                                                    px: 2,
+                                                                    py: 1.5,
+                                                                    borderBottom: '1px solid #2f353c',
+                                                                }}
+                                                            >
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                                    <Typography variant="subtitle2" sx={{ color: '#b6c2cf' }}>
+                                                                        Miembros
+                                                                    </Typography>
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() => setSubtaskAssigneeMenuOpen(false)}
+                                                                        sx={{ color: '#9fadbc', '&:hover': { color: '#ffffff' } }}
+                                                                        title="Cerrar"
+                                                                    >
+                                                                        <Close fontSize="small" />
+                                                                    </IconButton>
+                                                                </Box>
+                                                                <TextField
+                                                                    size="small"
+                                                                    placeholder="Buscar miembros"
+                                                                    value={subtaskAssigneeSearch}
+                                                                    onChange={(e) => setSubtaskAssigneeSearch(e.target.value)}
+                                                                    fullWidth
+                                                                    InputProps={{
+                                                                        startAdornment: (
+                                                                            <InputAdornment position="start">
+                                                                                <Search sx={{ color: '#9fadbc' }} fontSize="small" />
+                                                                            </InputAdornment>
+                                                                        ),
+                                                                    }}
+                                                                    sx={{
+                                                                        '& .MuiOutlinedInput-root': {
+                                                                            bgcolor: '#22272b',
+                                                                            color: '#b6c2cf',
+                                                                            '& fieldset': { borderColor: '#3a4149' },
+                                                                            '&:hover fieldset': { borderColor: '#579dff' },
+                                                                            '&.Mui-focused fieldset': { borderColor: '#579dff' },
+                                                                        },
+                                                                        '& .MuiOutlinedInput-input': {
+                                                                            py: 0.8,
+                                                                        },
+                                                                    }}
+                                                                />
+                                                            </ListSubheader>
+                                                            {subtaskAssigneeOptions.map((member) => (
+                                                                <MenuItem
+                                                                    key={member.id}
+                                                                    value={member.id}
+                                                                    sx={{
+                                                                        gap: 1,
+                                                                        py: 1,
+                                                                        '&.Mui-selected': { bgcolor: 'rgba(88,166,255,0.12)' },
+                                                                        '&.Mui-selected:hover': { bgcolor: 'rgba(88,166,255,0.18)' },
+                                                                    }}
+                                                                >
                                                                     <Checkbox
                                                                         checked={editedSubtaskAssigneeIds.includes(member.id)}
                                                                         sx={{ color: '#9fadbc', '&.Mui-checked': { color: '#4ade80' } }}
                                                                     />
-                                                                    <ListItemText primary={member.displayName} />
+                                                                    <Avatar
+                                                                        src={member.avatarUrl}
+                                                                        sx={{ bgcolor: '#667eea', width: 26, height: 26, fontSize: '0.7rem' }}
+                                                                    >
+                                                                        {member.displayName?.charAt(0) || 'U'}
+                                                                    </Avatar>
+                                                                    <ListItemText
+                                                                        primary={member.displayName}
+                                                                        secondary={member.email}
+                                                                        sx={{
+                                                                            '& .MuiListItemText-primary': { color: 'white', fontSize: '0.85rem' },
+                                                                            '& .MuiListItemText-secondary': { color: '#9fadbc', fontSize: '0.7rem' },
+                                                                        }}
+                                                                    />
                                                                 </MenuItem>
                                                             ))}
+                                                            {subtaskAssigneeOptions.length === 0 && (
+                                                                <MenuItem disabled sx={{ opacity: 0.7 }}>
+                                                                    <ListItemText primary="No se encontraron miembros" />
+                                                                </MenuItem>
+                                                            )}
                                                         </TextField>
                                                         <Box sx={{ display: 'flex', gap: 1 }}>
                                                             <Button

@@ -46,6 +46,24 @@ export const AuthProvider = ({ children }) => {
         return () => controller.abort();
     }, [token]);
 
+    useEffect(() => {
+        const interceptorId = apiClient.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error?.response?.status === 401) {
+                    setToken(null);
+                    setUser(null);
+                    navigate('/login', { replace: true });
+                }
+                return Promise.reject(error);
+            },
+        );
+
+        return () => {
+            apiClient.interceptors.response.eject(interceptorId);
+        };
+    }, [navigate]);
+
     const signOut = useCallback(() => {
         setToken(null);
         setUser(null);
