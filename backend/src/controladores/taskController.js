@@ -141,7 +141,7 @@ const createTask = async (req, res) => {
         const { boardId } = req.params;
         const { title, description, dueDate, columnId, completed, assigneeIds } = req.body;
 
-        const board = await assertBoardOwnership(boardId, req.user.id, transaction);
+        const { board } = await assertBoardEditorAccess(boardId, req.user.id);
 
         const targetColumn = columnId
             ? await Column.findOne({ where: { id: columnId, boardId: board.id }, transaction })
@@ -154,6 +154,7 @@ const createTask = async (req, res) => {
         }
 
         if (assigneeIds !== undefined) {
+            await assertBoardOwnerAccess(board.id, req.user.id);
             await assertAssigneesInBoard(board.id, assigneeIds);
         }
 

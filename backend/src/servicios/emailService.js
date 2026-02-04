@@ -251,6 +251,26 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
         boardsSummary.forEach(board => {
             const totalTasks = board.completed + board.inProgress + board.pending;
             const completionPercentage = totalTasks > 0 ? Math.round((board.completed / totalTasks) * 100) : 0;
+          const completedSubtasks = board.completedSubtasks || 0;
+          const completedSubtasksBy = Array.isArray(board.completedSubtasksBy) ? board.completedSubtasksBy : [];
+          const subtasksHtml = completedSubtasks > 0
+            ? `
+              <div style="margin-top: 18px; padding: 14px; background: #f7f7ff; border-radius: 8px; border: 1px solid #e4e4f7;">
+                <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px;">
+                  Subtareas completadas: <strong>${completedSubtasks}</strong>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 6px;">Responsables</div>
+                <table style="width: 100%; border-collapse: collapse;">
+                  ${completedSubtasksBy.map(item => `
+                    <tr>
+                      <td style="padding: 6px 0; color: #333; font-size: 13px;">${item.name}</td>
+                      <td style="padding: 6px 0; text-align: right; color: #4caf50; font-weight: bold; font-size: 13px;">${item.count}</td>
+                    </tr>
+                  `).join('')}
+                </table>
+              </div>
+            `
+            : '';
             
             boardsHtml += `
                 <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -290,6 +310,7 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                             ${completionPercentage}% completado
                         </div>
                     </div>
+                      ${subtasksHtml}
                 </div>
             `;
         });

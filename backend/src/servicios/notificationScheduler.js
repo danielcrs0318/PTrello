@@ -198,7 +198,20 @@ async function sendDailyReports() {
                             as: 'tasks',
                             include: [{
                                 model: Subtask,
-                                as: 'subtasks'
+                                as: 'subtasks',
+                                include: [
+                                    {
+                                        model: User,
+                                        as: 'assignees',
+                                        attributes: ['id', 'displayName', 'email'],
+                                        through: { attributes: [] }
+                                    },
+                                    {
+                                        model: User,
+                                        as: 'assignee',
+                                        attributes: ['id', 'displayName', 'email']
+                                    }
+                                ]
                             }]
                         }],
                         order: [['position', 'ASC']]
@@ -208,6 +221,8 @@ async function sendDailyReports() {
                     let completed = 0;
                     let inProgress = 0;
                     let pending = 0;
+                    let completedSubtasks = 0;
+                    const completedSubtasksBy = new Map();
 
                     columns.forEach(column => {
                         const columnNameLower = column.name.toLowerCase();
@@ -228,6 +243,27 @@ async function sendDailyReports() {
                             } else {
                                 pending++;
                             }
+
+                            task.subtasks.forEach(subtask => {
+                                if (!subtask.completed) return;
+                                completedSubtasks++;
+
+                                const assignees = Array.isArray(subtask.assignees) && subtask.assignees.length > 0
+                                    ? subtask.assignees
+                                    : (subtask.assignee ? [subtask.assignee] : []);
+
+                                if (assignees.length === 0) {
+                                    const current = completedSubtasksBy.get('Sin responsable') || 0;
+                                    completedSubtasksBy.set('Sin responsable', current + 1);
+                                    return;
+                                }
+
+                                assignees.forEach(assignee => {
+                                    const name = assignee.displayName || assignee.email || 'Sin responsable';
+                                    const current = completedSubtasksBy.get(name) || 0;
+                                    completedSubtasksBy.set(name, current + 1);
+                                });
+                            });
                         });
                     });
 
@@ -237,7 +273,12 @@ async function sendDailyReports() {
                             name: board.name,
                             completed,
                             inProgress,
-                            pending
+                            pending,
+                            completedSubtasks,
+                            completedSubtasksBy: Array.from(completedSubtasksBy.entries()).map(([name, count]) => ({
+                                name,
+                                count
+                            }))
                         });
                     }
                 }
