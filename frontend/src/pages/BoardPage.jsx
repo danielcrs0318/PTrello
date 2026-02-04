@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MoreHoriz, FilterList, ArrowBack, Star, PersonAdd, Menu as MenuIcon, Palette, DarkMode, LightMode, Edit, Delete, GitHub } from '@mui/icons-material';
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider, Popover, Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
@@ -48,15 +48,16 @@ export const BoardPage = () => {
         if (board.backgroundColor) {
             setBackgroundColor(board.backgroundColor);
         }
-        
-        // Verificar si el usuario actual es propietario
-        try {
-            const response = await apiClient.get(`/board-members/${boardId}/members`);
-            setIsOwner(response.data.owner?.id === user?.id);
-        } catch (error) {
-            console.error('Error al verificar permisos:', error);
+        if (board.ownerId && user?.id) {
+            setIsOwner(board.ownerId === user.id);
         }
     };
+
+    useEffect(() => {
+        if (boardInfo?.ownerId && user?.id) {
+            setIsOwner(boardInfo.ownerId === user.id);
+        }
+    }, [boardInfo?.ownerId, user?.id]);
 
     const handleUserMenuOpen = (event) => {
         setUserMenuAnchorEl(event.currentTarget);

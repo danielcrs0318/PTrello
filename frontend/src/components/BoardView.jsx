@@ -110,6 +110,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
                     name: response.data.name,
                     description: response.data.description,
                     backgroundColor: response.data.backgroundColor,
+                    ownerId: response.data.ownerId,
                 };
                 const normalisedColumns = normaliseColumns(response.data.columns);
                 const initialTasks = mapTasks(response.data.columns);

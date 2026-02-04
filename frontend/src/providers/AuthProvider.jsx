@@ -4,18 +4,29 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/api.js';
 
 const TOKEN_STORAGE_KEY = 'sprintflow_token';
+const USER_STORAGE_KEY = 'sprintflow_user';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
     const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY));
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => {
+        const raw = localStorage.getItem(USER_STORAGE_KEY);
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (error) {
+            console.warn('No fue posible leer el usuario almacenado:', error);
+            return null;
+        }
+    });
     const [loading, setLoading] = useState(Boolean(token));
 
     useEffect(() => {
         if (!token) {
             delete apiClient.defaults.headers.common.Authorization;
             localStorage.removeItem(TOKEN_STORAGE_KEY);
+            localStorage.removeItem(USER_STORAGE_KEY);
             setUser(null);
             setLoading(false);
             return undefined;
@@ -45,6 +56,18 @@ export const AuthProvider = ({ children }) => {
 
         return () => controller.abort();
     }, [token]);
+
+    useEffect(() => {
+        if (!user) {
+            localStorage.removeItem(USER_STORAGE_KEY);
+            return;
+        }
+        try {
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        } catch (error) {
+            console.warn('No fue posible persistir el usuario:', error);
+        }
+    }, [user]);
 
     useEffect(() => {
         const interceptorId = apiClient.interceptors.response.use(
