@@ -136,6 +136,7 @@ const initModels = () => {
         otherKey: { name: 'subtaskId', onDelete: 'CASCADE', onUpdate: 'CASCADE' },
     });
 
+
     // Relaciones de BoardMember
     Board.belongsToMany(User, {
         through: BoardMember,
