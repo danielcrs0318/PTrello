@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dashboard as DashboardIcon, ViewKanban, Add, Person, Close, Search, DarkMode, LightMode, GitHub } from '@mui/icons-material';
+import { Dashboard as DashboardIcon, ViewKanban, Add, Person, Close, Search, DarkMode, LightMode, GitHub, CalendarMonth } from '@mui/icons-material';
 import { Menu, MenuItem, ListItemText, Divider, IconButton } from '@mui/material';
 
 import { CreateBoardForm } from '../components/CreateBoardForm.jsx';
@@ -95,6 +95,16 @@ export const Dashboard = () => {
                         <button className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded transition-colors text-sm" style={{ color: colors.text.primary, backgroundColor: 'transparent' }} onMouseEnter={(e) => e.target.style.backgroundColor = colors.bg.hover} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                             <DashboardIcon fontSize="small" />
                             <span>Tableros</span>
+                        </button>
+                        <button
+                            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded transition-colors text-sm"
+                            style={{ color: colors.text.primary, backgroundColor: 'transparent' }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = colors.bg.hover}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                            onClick={() => navigate('/calendar')}
+                        >
+                            <CalendarMonth fontSize="small" />
+                            <span>Calendario</span>
                         </button>
                     </div>
                     

@@ -1,3 +1,8 @@
+@import "https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.20/index.global.min.css";
+@import "https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.20/index.global.min.css";
+@import "https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.20/index.global.min.css";
+@import "https://cdn.jsdelivr.net/npm/@fullcalendar/list@6.1.20/index.global.min.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -29,4 +34,74 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(107, 114, 128, 0.6);
+}
+
+/* FullCalendar custom styles */
+.calendar-root .fc {
+    --fc-page-bg-color: var(--calendar-bg);
+    --fc-border-color: var(--calendar-border);
+    --fc-neutral-bg-color: var(--calendar-secondary-bg);
+    --fc-today-bg-color: var(--calendar-today-bg);
+    --fc-list-event-hover-bg-color: var(--calendar-secondary-bg);
+    color: var(--calendar-text);
+}
+
+.calendar-root .fc .fc-toolbar-title {
+    color: var(--calendar-text);
+    font-weight: 600;
+}
+
+.calendar-root .fc .fc-button {
+    background: var(--calendar-button-bg);
+    border-color: var(--calendar-button-border);
+    color: var(--calendar-button-text);
+    text-transform: none;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+.calendar-root .fc .fc-button:hover,
+.calendar-root .fc .fc-button:focus {
+    background: var(--calendar-button-hover);
+    border-color: var(--calendar-button-border);
+    color: var(--calendar-button-text);
+}
+
+.calendar-root .fc .fc-button-primary:not(:disabled).fc-button-active,
+.calendar-root .fc .fc-button-primary:not(:disabled):active {
+    background: var(--calendar-button-hover);
+    border-color: var(--calendar-button-border);
+    color: var(--calendar-button-text);
+}
+
+.calendar-root .fc .fc-daygrid-day-number,
+.calendar-root .fc .fc-col-header-cell-cushion {
+    color: var(--calendar-text);
+}
+
+.calendar-root .fc-event-custom {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 4px;
+}
+
+.calendar-root .fc-event-title {
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.calendar-root .fc-event-meta {
+    font-size: 10px;
+    color: var(--calendar-text-secondary);
+    line-height: 1.2;
+}
+
+.calendar-root .fc-event-badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--calendar-text);
+    opacity: 0.8;
 }

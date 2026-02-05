@@ -4,6 +4,7 @@ import { useAuthContext } from './providers/AuthProvider.jsx';
 import { AuthCallback } from './pages/AuthCallback.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
 import { BoardPage } from './pages/BoardPage.jsx';
+import { CalendarDashboard } from './pages/CalendarDashboard.jsx';
 import { LoginScreen } from './components/LoginScreen.jsx';
 
 const ProtectedRoute = ({ children }) => {
@@ -48,6 +49,14 @@ export default function App() {
                 element={(
                     <ProtectedRoute>
                         <BoardPage />
+                    </ProtectedRoute>
+                )}
+            />
+            <Route
+                path="/calendar"
+                element={(
+                    <ProtectedRoute>
+                        <CalendarDashboard />
                     </ProtectedRoute>
                 )}
             />

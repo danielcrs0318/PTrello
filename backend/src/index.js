@@ -21,6 +21,7 @@ const taskRoutes = require('./rutas/taskRoutes');
 const notificationRoutes = require('./rutas/notificationRoutes');
 const boardMemberRoutes = require('./rutas/boardMemberRoutes');
 const imageRoutes = require('./rutas/imageRoutes');
+const calendarRoutes = require('./rutas/calendarRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,7 @@ app.use('/boards', boardRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/board-members', boardMemberRoutes);
+app.use('/calendar', calendarRoutes);
 app.use('/', imageRoutes);
 
 app.use((_req, res) => res.status(404).json({ mensaje: 'Recurso no encontrado.' }));
