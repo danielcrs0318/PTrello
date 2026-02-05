@@ -7,15 +7,37 @@ const path = require('path');
 const fs = require('fs/promises');
 const crypto = require('crypto');
 
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/jpg']);
+const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
 
 const normalizePath = (value) => value.replace(/\\/g, '/');
 
-const buildImageFolder = ({ projectId, taskId, subtaskId }) => {
+const slugify = (value) => {
+    if (!value) return '';
+    return String(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+};
+
+const buildImageFolder = ({
+    projectId,
+    taskId,
+    subtaskId,
+    projectName,
+    taskName,
+    subtaskName,
+}) => {
+    const projectSlug = slugify(projectName) || 'sin-proyecto';
+    const taskSlug = slugify(taskName) || 'sin-tarea';
+    const subtaskSlug = slugify(subtaskName) || 'sin-subtarea';
+
     if (subtaskId) {
-        return `projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}/images`;
+        return `projects/${projectSlug}/tasks/${taskSlug}/subtasks/${subtaskSlug}/images`;
     }
-    return `projects/${projectId}/tasks/${taskId}/images`;
+    return `projects/${projectSlug}/tasks/${taskSlug}/images`;
 };
 
 const buildFileName = (originalName) => {
@@ -42,4 +64,5 @@ module.exports = {
     buildPublicUrl,
     isMimeAllowed,
     normalizePath,
+    slugify,
 };

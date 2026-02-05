@@ -46,7 +46,7 @@ const ensureTaskInProject = async (projectId, taskId) => {
                     {
                         model: Board,
                         as: 'board',
-                        attributes: ['id'],
+                        attributes: ['id', 'name'],
                     },
                 ],
             },
@@ -68,6 +68,7 @@ const ensureSubtaskInTask = async (projectId, taskId, subtaskId) => {
             {
                 model: Task,
                 as: 'task',
+                attributes: ['id', 'title'],
                 include: [
                     {
                         model: Column,
@@ -76,7 +77,7 @@ const ensureSubtaskInTask = async (projectId, taskId, subtaskId) => {
                             {
                                 model: Board,
                                 as: 'board',
-                                attributes: ['id'],
+                                attributes: ['id', 'name'],
                             },
                         ],
                     },
@@ -99,6 +100,9 @@ const saveImages = async ({
     projectId,
     taskId,
     subtaskId,
+    projectName,
+    taskName,
+    subtaskName,
     entityType,
     entityId,
 }) => {
@@ -109,7 +113,14 @@ const saveImages = async ({
         throw error;
     }
 
-    const baseFolder = buildImageFolder({ projectId, taskId, subtaskId });
+    const baseFolder = buildImageFolder({
+        projectId,
+        taskId,
+        subtaskId,
+        projectName,
+        taskName,
+        subtaskName,
+    });
     const publicRoot = path.join(__dirname, '..', '..', 'public', 'img');
     const absoluteFolder = path.join(publicRoot, baseFolder);
 
@@ -151,12 +162,14 @@ const uploadTaskImages = async (req, res) => {
         handleValidation(req);
         const { projectId, taskId } = req.params;
 
-        await ensureTaskInProject(projectId, taskId);
+        const task = await ensureTaskInProject(projectId, taskId);
 
         const saved = await saveImages({
             req,
             projectId,
             taskId,
+            projectName: task.column?.board?.name,
+            taskName: task.title,
             entityType: 'TASK',
             entityId: taskId,
         });
@@ -180,13 +193,16 @@ const uploadSubtaskImages = async (req, res) => {
         handleValidation(req);
         const { projectId, taskId, subtaskId } = req.params;
 
-        await ensureSubtaskInTask(projectId, taskId, subtaskId);
+        const subtask = await ensureSubtaskInTask(projectId, taskId, subtaskId);
 
         const saved = await saveImages({
             req,
             projectId,
             taskId,
             subtaskId,
+            projectName: subtask.task?.column?.board?.name,
+            taskName: subtask.task?.title,
+            subtaskName: subtask.title,
             entityType: 'SUBTASK',
             entityId: subtaskId,
         });

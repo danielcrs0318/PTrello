@@ -465,12 +465,12 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
             const response = await apiClient.post(
                 `/projects/${boardId}/tasks/${task.id}/images`,
                 formData,
-                { headers: { 'Content-Type': 'multipart/form-data' } },
             );
             const uploaded = response.data?.images || [];
             setTaskImages((current) => [...current, ...uploaded]);
         } catch (error) {
             console.error('Error al subir imágenes de tarea:', error);
+            console.error('Detalle backend:', error?.response?.data);
         } finally {
             setUploadingTaskImages(false);
         }
@@ -485,7 +485,6 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
             const response = await apiClient.post(
                 `/projects/${boardId}/tasks/${task.id}/subtasks/${subtaskId}/images`,
                 formData,
-                { headers: { 'Content-Type': 'multipart/form-data' } },
             );
             const uploaded = response.data?.images || [];
             setSubtaskImages((current) => ({
@@ -494,6 +493,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
             }));
         } catch (error) {
             console.error('Error al subir imágenes de subtarea:', error);
+            console.error('Detalle backend:', error?.response?.data);
         } finally {
             setUploadingSubtaskImages((prev) => ({ ...prev, [subtaskId]: false }));
         }
@@ -878,7 +878,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                     <input
                         ref={taskUploadInputRef}
                         type="file"
-                        accept="image/png,image/jpeg,image/jpg"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
                         multiple
                         hidden
                         onChange={(e) => {
@@ -1207,7 +1207,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                                                                 {uploadingSubtaskImages[subtask.id] ? 'Subiendo...' : 'Subir imágenes'}
                                                                 <input
                                                                     type="file"
-                                                                    accept="image/png,image/jpeg,image/jpg"
+                                                                    accept="image/png,image/jpeg,image/jpg,image/webp"
                                                                     multiple
                                                                     hidden
                                                                     onChange={(e) => {
