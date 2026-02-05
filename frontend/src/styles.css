@@ -105,3 +105,32 @@ body {
     color: var(--calendar-text);
     opacity: 0.8;
 }
+
+.calendar-root .fc-view-harness {
+    transition: height 200ms ease;
+}
+
+.calendar-root .fc-view-harness .fc-view {
+    animation: calendar-fade-in 220ms ease;
+}
+
+.calendar-root .fc-event {
+    transition: box-shadow 160ms ease, transform 160ms ease, filter 160ms ease;
+}
+
+.calendar-root .fc-event.fc-event-hover {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+}
+
+@keyframes calendar-fade-in {
+    from {
+        opacity: 0.5;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

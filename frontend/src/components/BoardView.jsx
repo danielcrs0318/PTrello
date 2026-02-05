@@ -66,9 +66,10 @@ const computeMetrics = (columns, tasksByColumn) => {
     };
 };
 
-export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
+export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTaskId, initialSubtaskId, onInitialTaskHandled }) => {
     const navigate = useNavigate();
     const [boardInfo, setBoardInfo] = useState(null);
+    const [canEdit, setCanEdit] = useState(true);
     const [columns, setColumns] = useState([]);
     const [tasksByColumn, setTasksByColumn] = useState({});
     const [filteredTasksByColumn, setFilteredTasksByColumn] = useState({});
@@ -81,6 +82,11 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
     const [isCreatingColumn, setIsCreatingColumn] = useState(false);
     const [newColumnName, setNewColumnName] = useState('');
     const dragOriginRef = useRef(null);
+    const initialTaskOpenedRef = useRef(false);
+
+    useEffect(() => {
+        initialTaskOpenedRef.current = false;
+    }, [initialTaskId, boardId]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -112,6 +118,8 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
                     description: response.data.description,
                     backgroundColor: response.data.backgroundColor,
                     ownerId: response.data.ownerId,
+                    canEdit: response.data.canEdit ?? false,
+                    memberRole: response.data.memberRole ?? null,
                 };
                 const normalisedColumns = normaliseColumns(response.data.columns);
                 const initialTasks = mapTasks(response.data.columns);
@@ -121,6 +129,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
                 setColumns(normalisedColumns);
                 setTasksByColumn(initialTasks);
                 setMetrics(computedMetrics);
+                setCanEdit(info.canEdit ?? false);
                 notifyBoardReady(info, computedMetrics);
             } catch (requestError) {
                 if (!cancelled) {
@@ -155,6 +164,21 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
             cancelled = true;
         };
     }, [boardId]);
+
+    useEffect(() => {
+        if (!initialTaskId || initialTaskOpenedRef.current || loading) return;
+
+        const foundTask = Object.values(tasksByColumn)
+            .flat()
+            .find((task) => task.id === initialTaskId);
+
+        if (foundTask) {
+            setSelectedTask(foundTask);
+            setIsModalOpen(true);
+            initialTaskOpenedRef.current = true;
+            onInitialTaskHandled?.();
+        }
+    }, [initialTaskId, tasksByColumn, loading, onInitialTaskHandled]);
 
     // Aplicar filtros
     useEffect(() => {
@@ -213,6 +237,9 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
     ), []);
 
     const handleCreateTask = async (columnId, payload) => {
+        if (!canEdit) {
+            throw new Error('No tienes permisos para crear tareas en este tablero.');
+        }
         try {
             const response = await apiClient.post(`/boards/${boardId}/tasks`, {
                 ...payload,
@@ -561,6 +588,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
                             onTaskClick={handleTaskClick}
                             onUpdateColumn={handleUpdateColumn}
                             onDeleteColumn={handleDeleteColumn}
+                            canEdit={canEdit}
                         />
                     ))}
                     
@@ -633,6 +661,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner }) => {
                 onTaskUpdate={handleTaskUpdate}
                 boardId={boardId}
                 isOwner={isOwner}
+                initialSubtaskId={initialSubtaskId}
             />
         </>
     );

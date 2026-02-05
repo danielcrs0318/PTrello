@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Menu as MenuIcon, FilterList, ArrowBack, Star, PersonAdd, Palette, Edit, Delete, GitHub, Send, Notifications } from '@mui/icons-material';
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider, Popover, Box, Typography, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert } from '@mui/material';
 
@@ -25,6 +25,7 @@ const backgroundOptions = [
 export const BoardPage = () => {
     const { boardId } = useParams();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { colors } = useTheme();
     const [boardInfo, setBoardInfo] = useState(null);
     const [backgroundColor, setBackgroundColor] = useState('linear-gradient(135deg, #0c4a6e 0%, #075985 100%)');
@@ -43,6 +44,8 @@ export const BoardPage = () => {
     const [summaryMessage, setSummaryMessage] = useState(null);
     const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null);
     const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [initialTaskId, setInitialTaskId] = useState(null);
+    const [initialSubtaskId, setInitialSubtaskId] = useState(null);
     const userMenuOpen = Boolean(userMenuAnchorEl);
     const boardMenuOpen = Boolean(boardMenuAnchorEl);
     const colorOpen = Boolean(colorAnchorEl);
@@ -55,6 +58,21 @@ export const BoardPage = () => {
         if (board.ownerId && user?.id) {
             setIsOwner(board.ownerId === user.id);
         }
+    };
+
+    useEffect(() => {
+        const taskId = searchParams.get('taskId');
+        const subtaskId = searchParams.get('subtaskId');
+        setInitialTaskId(taskId);
+        setInitialSubtaskId(subtaskId);
+    }, [searchParams]);
+
+    const handleInitialTaskHandled = () => {
+        if (!searchParams.has('taskId') && !searchParams.has('subtaskId')) return;
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('taskId');
+        nextParams.delete('subtaskId');
+        setSearchParams(nextParams, { replace: true });
     };
 
     useEffect(() => {
@@ -363,6 +381,9 @@ export const BoardPage = () => {
                     onBoardReady={handleBoardReady}
                     filters={filters}
                     isOwner={isOwner}
+                    initialTaskId={initialTaskId}
+                    initialSubtaskId={initialSubtaskId}
+                    onInitialTaskHandled={handleInitialTaskHandled}
                 />
             </div>
 

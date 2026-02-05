@@ -273,15 +273,21 @@ const getBoard = async (req, res) => {
 
         // Verificar si el usuario tiene acceso (es propietario o miembro)
         const isOwner = board.ownerId === userId;
-        const isMember = await BoardMember.findOne({
+        const member = await BoardMember.findOne({
             where: { boardId: id, userId }
         });
 
-        if (!isOwner && !isMember) {
+        if (!isOwner && !member) {
             return res.status(403).json({ mensaje: 'No tienes acceso a este tablero.' });
         }
+        const canEdit = isOwner || (member && member.role === 'editor');
 
-        return res.json(sortBoardPayload(board.toJSON()));
+        const payload = sortBoardPayload(board.toJSON());
+        payload.isOwner = isOwner;
+        payload.memberRole = isOwner ? 'owner' : (member?.role || null);
+        payload.canEdit = canEdit;
+
+        return res.json(payload);
     } catch (error) {
         return res.status(500).json({
             mensaje: 'No fue posible recuperar el tablero solicitado.',

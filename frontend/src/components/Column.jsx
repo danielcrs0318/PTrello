@@ -6,7 +6,7 @@ import { IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogT
 
 import { TaskCard } from './TaskCard.jsx';
 
-export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTaskClick, onUpdateColumn, onDeleteColumn }) => {
+export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTaskClick, onUpdateColumn, onDeleteColumn, canEdit }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: column.id,
         data: {
@@ -30,6 +30,10 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
 
     const handleSubmit = async (event) => {
         event.preventDefault();
+        if (!canEdit) {
+            setError('No tienes permisos para crear tareas en este tablero.');
+            return;
+        }
         if (!form.title.trim()) {
             setError('La tarea necesita un título.');
             return;
@@ -187,7 +191,7 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                                 placeholder="Introducir un título para esta tarjeta…"
                                 value={form.title}
                                 onChange={handleChange}
-                                disabled={submitting}
+                                disabled={submitting || !canEdit}
                                 autoFocus
                                 rows={3}
                                 className="w-full bg-[#22272b] border-none rounded-lg px-3 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#579dff] resize-none shadow-md"
@@ -197,7 +201,7 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                                 placeholder="Descripción (opcional)"
                                 value={form.description}
                                 onChange={handleChange}
-                                disabled={submitting}
+                                disabled={submitting || !canEdit}
                                 rows={2}
                                 className="w-full bg-[#1d2125] border border-[#3c434a] rounded-lg px-3 py-2 text-white text-xs placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#579dff] resize-none"
                             />
@@ -205,7 +209,7 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                             <div className="flex items-center gap-2">
                                 <button 
                                     type="submit" 
-                                    disabled={submitting}
+                                    disabled={submitting || !canEdit}
                                     className="bg-[#579dff] hover:bg-[#85b8ff] text-white text-sm font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50"
                                 >
                                     {submitting ? 'Agregando…' : 'Añadir tarjeta'}
@@ -224,14 +228,26 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                             </div>
                         </form>
                     ) : (
-                        <button 
-                            type="button" 
-                            onClick={() => setComposerOpen(true)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors text-sm"
-                        >
-                            <Add fontSize="small" />
-                            <span>Añadir una tarjeta</span>
-                        </button>
+                        <div className="space-y-1">
+                            <button 
+                                type="button" 
+                                onClick={() => {
+                                    if (!canEdit) {
+                                        setError('No tienes permisos para crear tareas en este tablero.');
+                                        return;
+                                    }
+                                    setComposerOpen(true);
+                                }}
+                                disabled={!canEdit}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:hover:bg-transparent"
+                            >
+                                <Add fontSize="small" />
+                                <span>Añadir una tarjeta</span>
+                            </button>
+                            {!canEdit && (
+                                <div className="text-[11px] text-gray-400 px-1">Solo lectura</div>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

@@ -68,10 +68,27 @@ export const CalendarDashboard = () => {
     };
 
     const handleEventClick = (info) => {
-        const { boardId } = info.event.extendedProps || {};
-        if (boardId) {
-            navigate(`/boards/${boardId}`);
+        const { boardId, taskId, subtaskId, type } = info.event.extendedProps || {};
+        if (!boardId) return;
+
+        const search = new URLSearchParams();
+        if (taskId) {
+            search.set('taskId', taskId);
         }
+        if (type === 'subtask' && subtaskId) {
+            search.set('subtaskId', subtaskId);
+        }
+
+        const query = search.toString();
+        navigate(query ? `/boards/${boardId}?${query}` : `/boards/${boardId}`);
+    };
+
+    const handleEventMouseEnter = (info) => {
+        info.el.classList.add('fc-event-hover');
+    };
+
+    const handleEventMouseLeave = (info) => {
+        info.el.classList.remove('fc-event-hover');
     };
 
     return (
@@ -134,6 +151,8 @@ export const CalendarDashboard = () => {
                             events={events}
                             eventContent={renderEventContent}
                             eventClick={handleEventClick}
+                            eventMouseEnter={handleEventMouseEnter}
+                            eventMouseLeave={handleEventMouseLeave}
                             height="auto"
                             dayMaxEventRows={3}
                             nowIndicator

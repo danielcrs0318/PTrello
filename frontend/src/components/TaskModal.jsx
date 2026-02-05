@@ -34,12 +34,13 @@ import { apiClient } from '../services/api';
 
 dayjs.locale('es');
 
-export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner }) => {
+export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner, initialSubtaskId }) => {
     const [subtasks, setSubtasks] = useState(task?.subtasks || []);
     const [description, setDescription] = useState(task?.description || '');
     const [savingDescription, setSavingDescription] = useState(false);
     const [taskCompleted, setTaskCompleted] = useState(task?.completed ?? false);
     const [taskAssigneeIds, setTaskAssigneeIds] = useState(task?.assignees?.map((assignee) => assignee.id) || []);
+    const [taskDueDate, setTaskDueDate] = useState(task?.dueDate || null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(task?.title || '');
     const [savingTitle, setSavingTitle] = useState(false);
@@ -49,6 +50,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
     const [isCreating, setIsCreating] = useState(false);
     const [colorAnchorEl, setColorAnchorEl] = useState(null);
     const [dateAnchorEl, setDateAnchorEl] = useState(null);
+    const [taskDateAnchorEl, setTaskDateAnchorEl] = useState(null);
     const [selectedSubtask, setSelectedSubtask] = useState(null);
     const [editingSubtaskId, setEditingSubtaskId] = useState(null);
     const [editedSubtaskTitle, setEditedSubtaskTitle] = useState('');
@@ -70,6 +72,10 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
     const [tempDate, setTempDate] = useState(null);
     const [subtaskMenuAnchorEl, setSubtaskMenuAnchorEl] = useState(null);
     const [subtaskMenuTarget, setSubtaskMenuTarget] = useState(null);
+    const [taskTempDate, setTaskTempDate] = useState(null);
+    const [highlightedSubtaskId, setHighlightedSubtaskId] = useState(null);
+    const subtaskRefs = useRef({});
+    const highlightTimeoutRef = useRef(null);
 
     const isAnchorValid = (anchor) => Boolean(anchor && anchor.isConnected);
 
@@ -92,19 +98,48 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
         setDescription(task?.description || '');
         setTaskCompleted(task?.completed ?? false);
         setTaskAssigneeIds(task?.assignees?.map((assignee) => assignee.id) || []);
+        setTaskDueDate(task?.dueDate || null);
         setEditedTitle(task?.title || '');
         setIsEditingTitle(false);
         setTaskImages([]);
         setSubtaskImages({});
+        setHighlightedSubtaskId(null);
     }, [task]);
 
     useEffect(() => {
         if (!open) {
             setColorAnchorEl(null);
             setDateAnchorEl(null);
+            setTaskDateAnchorEl(null);
             setSelectedSubtask(null);
+            setHighlightedSubtaskId(null);
         }
     }, [open]);
+
+    useEffect(() => {
+        if (!open || !initialSubtaskId) return;
+
+        setHighlightedSubtaskId(initialSubtaskId);
+        const target = subtaskRefs.current?.[initialSubtaskId];
+        if (target) {
+            requestAnimationFrame(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+
+        if (highlightTimeoutRef.current) {
+            clearTimeout(highlightTimeoutRef.current);
+        }
+        highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedSubtaskId(null);
+        }, 2200);
+
+        return () => {
+            if (highlightTimeoutRef.current) {
+                clearTimeout(highlightTimeoutRef.current);
+            }
+        };
+    }, [open, initialSubtaskId, subtasks]);
 
     useEffect(() => {
         if (!open || !task || !boardId) return;
@@ -456,6 +491,55 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
         }
     };
 
+    const handleTaskDateClick = (event) => {
+        event.stopPropagation();
+        setTaskTempDate(taskDueDate ? dayjs(taskDueDate) : dayjs());
+        setTaskDateAnchorEl(event.currentTarget);
+    };
+
+    const handleTaskDateAccept = async () => {
+        if (!task || !taskTempDate) return;
+
+        try {
+            const response = await apiClient.put(`/tasks/${task.id}`, {
+                dueDate: taskTempDate.toISOString(),
+            });
+            setTaskDueDate(response.data?.dueDate || taskTempDate.toISOString());
+            setTaskDateAnchorEl(null);
+            setTaskTempDate(null);
+            onTaskUpdate?.();
+        } catch (error) {
+            console.error('Error al actualizar fecha de la tarea:', error);
+        }
+    };
+
+    const handleTaskDateClear = async () => {
+        if (!task) return;
+
+        try {
+            await apiClient.put(`/tasks/${task.id}`, {
+                dueDate: null,
+            });
+            setTaskDueDate(null);
+            setTaskDateAnchorEl(null);
+            setTaskTempDate(null);
+            onTaskUpdate?.();
+        } catch (error) {
+            console.error('Error al limpiar fecha de la tarea:', error);
+        }
+    };
+
+    const handleTaskDateCancel = () => {
+        setTaskDateAnchorEl(null);
+        setTaskTempDate(null);
+    };
+
+    const setSubtaskRef = (subtaskId) => (element) => {
+        if (element) {
+            subtaskRefs.current[subtaskId] = element;
+        }
+    };
+
     const resolveMemberName = (memberId) => (
         members.find((member) => member.id === memberId)?.displayName || 'Usuario'
     );
@@ -642,6 +726,58 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                     <Typography variant="body2" sx={{ color: taskCompleted ? '#4ade80' : '#9fadbc' }}>
                         Marcar tarea como terminada
                     </Typography>
+                </Box>
+                <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ color: '#9fadbc', mb: 1 }}>
+                        Fecha de vencimiento
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                        {taskDueDate ? (
+                            <Chip
+                                label={dayjs(taskDueDate).format('DD/MM/YYYY HH:mm')}
+                                size="small"
+                                icon={<CalendarMonth />}
+                                sx={{
+                                    height: 24,
+                                    fontSize: '0.75rem',
+                                    bgcolor: dayjs(taskDueDate).isBefore(dayjs()) ? '#ef444480' : '#579dff40',
+                                    color: dayjs(taskDueDate).isBefore(dayjs()) ? '#ef4444' : '#579dff',
+                                    '& .MuiChip-icon': { fontSize: '1rem' },
+                                }}
+                            />
+                        ) : (
+                            <Typography variant="caption" sx={{ color: '#9fadbc' }}>
+                                Sin fecha asignada
+                            </Typography>
+                        )}
+                        <Button
+                            size="small"
+                            onClick={handleTaskDateClick}
+                            sx={{
+                                color: '#9fadbc',
+                                borderColor: '#3c434a',
+                                textTransform: 'none',
+                                '&:hover': { borderColor: '#579dff', color: 'white' },
+                            }}
+                            variant="outlined"
+                        >
+                            <CalendarMonth fontSize="small" style={{ marginRight: 6 }} />
+                            {taskDueDate ? 'Cambiar fecha' : 'Asignar fecha'}
+                        </Button>
+                        {taskDueDate && (
+                            <Button
+                                size="small"
+                                onClick={handleTaskDateClear}
+                                sx={{
+                                    color: '#9fadbc',
+                                    textTransform: 'none',
+                                    '&:hover': { color: '#ef4444' },
+                                }}
+                            >
+                                Quitar fecha
+                            </Button>
+                        )}
+                    </Box>
                 </Box>
                 <Box sx={{ mb: 3 }}>
                     <Typography variant="subtitle2" sx={{ color: '#9fadbc', mb: 1 }}>
@@ -935,12 +1071,14 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                         {subtasks.map((subtask) => (
                             <ListItem
                                 key={subtask.id}
+                                ref={setSubtaskRef(subtask.id)}
                                 sx={{
-                                    bgcolor: '#22272b',
+                                    bgcolor: highlightedSubtaskId === subtask.id ? '#2c333a' : '#22272b',
                                     borderRadius: 1,
                                     mb: 1,
                                     p: 0,
                                     borderLeft: subtask.color ? `4px solid ${subtask.color}` : 'none',
+                                    boxShadow: highlightedSubtaskId === subtask.id ? '0 0 0 1px #ffffff inset' : 'none',
                                     '&:hover .action-buttons': {
                                         opacity: 1,
                                     }
@@ -1464,6 +1602,104 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                         title={color.name}
                     />
                 ))}
+            </Popover>
+
+            {/* Popover para seleccionar fecha de la tarea */}
+            <Popover
+                open={isAnchorValid(taskDateAnchorEl)}
+                anchorEl={isAnchorValid(taskDateAnchorEl) ? taskDateAnchorEl : null}
+                onClose={handleTaskDateCancel}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                }}
+                PaperProps={{
+                    sx: {
+                        bgcolor: '#282e33',
+                        p: 0,
+                    }
+                }}
+            >
+                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
+                    <Box sx={{ bgcolor: '#282e33' }}>
+                        <StaticDateTimePicker
+                            value={taskTempDate}
+                            onChange={(newValue) => setTaskTempDate(newValue)}
+                            sx={{
+                                bgcolor: '#282e33',
+                                '& .MuiPickersCalendarHeader-root': {
+                                    color: 'white',
+                                },
+                                '& .MuiPickersDay-root': {
+                                    color: 'white',
+                                    '&.Mui-selected': {
+                                        bgcolor: '#579dff',
+                                    },
+                                },
+                                '& .MuiTypography-root': {
+                                    color: 'white',
+                                },
+                                '& .MuiPickersYear-yearButton': {
+                                    color: 'white',
+                                },
+                                '& .MuiClock-pin': {
+                                    bgcolor: '#579dff',
+                                },
+                                '& .MuiClockPointer-root': {
+                                    bgcolor: '#579dff',
+                                },
+                                '& .MuiClockPointer-thumb': {
+                                    bgcolor: '#579dff',
+                                    borderColor: '#579dff',
+                                },
+                                '& .MuiClockNumber-root': {
+                                    color: 'white',
+                                },
+                                '& .MuiSvgIcon-root': {
+                                    color: '#9fadbc',
+                                },
+                            }}
+                        />
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            p: 2,
+                            borderTop: '1px solid #3a4149',
+                            bgcolor: '#282e33',
+                        }}>
+                            <Button
+                                onClick={handleTaskDateClear}
+                                sx={{
+                                    color: '#9fadbc',
+                                    '&:hover': { bgcolor: '#3a4149' },
+                                }}
+                            >
+                                Limpiar
+                            </Button>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
+                                    onClick={handleTaskDateCancel}
+                                    sx={{
+                                        color: '#9fadbc',
+                                        '&:hover': { bgcolor: '#3a4149' },
+                                    }}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    onClick={handleTaskDateAccept}
+                                    variant="contained"
+                                    sx={{
+                                        bgcolor: '#579dff',
+                                        '&:hover': { bgcolor: '#4c8fe0' },
+                                    }}
+                                >
+                                    Aceptar
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Box>
+                </LocalizationProvider>
             </Popover>
 
             {/* Popover para seleccionar fecha */}
