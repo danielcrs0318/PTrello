@@ -3,9 +3,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable';
 import { CheckBox, DragIndicator } from '@mui/icons-material';
 
-export const TaskCard = memo(({ task, columnId, onTaskClick }) => {
+export const TaskCard = memo(({ task, columnId, onTaskClick, canEdit = true }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: task.id,
+        disabled: !canEdit,
         data: {
             type: 'task',
             columnId,
@@ -36,12 +37,12 @@ export const TaskCard = memo(({ task, columnId, onTaskClick }) => {
     };
 
     return (
-        <article 
-            ref={setNodeRef} 
+        <article
+            ref={setNodeRef}
             className="bg-[#22272b] hover:bg-[#2c333a] rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-[#22272b] hover:border-[#444]"
             style={style}
         >
-            <div 
+            <div
                 className="p-2.5"
                 onClick={handleClick}
             >
@@ -52,9 +53,10 @@ export const TaskCard = memo(({ task, columnId, onTaskClick }) => {
                         {...attributes}
                         {...listeners}
                         onClick={(e) => e.stopPropagation()}
-                        className="mt-0.5 text-gray-400 hover:text-gray-200 cursor-grab active:cursor-grabbing"
-                        aria-label="Mover tarea"
-                        title="Mover tarea"
+                        disabled={!canEdit}
+                        className={`mt - 0.5 ${canEdit ? 'text-gray-400 hover:text-gray-200 cursor-grab active:cursor-grabbing' : 'text-gray-600 cursor-not-allowed opacity-50'} `}
+                        aria-label={canEdit ? "Mover tarea" : "No puedes mover esta tarea"}
+                        title={canEdit ? "Mover tarea" : "Solo lectura"}
                     >
                         <DragIndicator sx={{ fontSize: 18 }} />
                     </button>
@@ -68,12 +70,12 @@ export const TaskCard = memo(({ task, columnId, onTaskClick }) => {
                         {task.title}
                     </div>
                 </div>
-                
+
                 {/* Mostrar checklist si existe */}
                 {hasSubtasks && (
                     <div className="flex items-center gap-1.5 mt-2">
                         <CheckBox sx={{ fontSize: 14, color: completedCount === totalCount ? '#4ade80' : '#9ca3af' }} />
-                        <span className={`text-xs ${completedCount === totalCount ? 'text-green-400' : 'text-gray-400'}`}>
+                        <span className={`text - xs ${completedCount === totalCount ? 'text-green-400' : 'text-gray-400'} `}>
                             {completedCount}/{totalCount}
                         </span>
                     </div>

@@ -12,6 +12,7 @@ const {
     Subtask,
     Column,
     Board,
+    BoardMember,
 } = require('../configuraciones/initModels');
 const {
     buildImageFolder,
@@ -23,6 +24,36 @@ const {
     compressImage,
     normalizePath,
 } = require('../servicios/imageStorage');
+
+/**
+ * Verifica que el usuario tenga permisos de edición en el tablero
+ * @param {string} boardId - ID del tablero
+ * @param {string} userId - ID del usuario
+ * @throws {Error} Error 403 si el usuario no tiene permisos de edición
+ */
+const assertBoardEditorAccess = async (boardId, userId) => {
+    const board = await Board.findByPk(boardId, { attributes: ['id', 'ownerId'] });
+    if (!board) {
+        const error = new Error('Tablero no encontrado.');
+        error.status = 404;
+        throw error;
+    }
+
+    // El propietario siempre tiene acceso
+    if (board.ownerId === userId) {
+        return { board, role: 'owner' };
+    }
+
+    // Verificar si es miembro con rol de editor
+    const member = await BoardMember.findOne({ where: { boardId, userId } });
+    if (!member || member.role !== 'editor') {
+        const error = new Error('No tienes permisos para modificar este tablero.');
+        error.status = 403;
+        throw error;
+    }
+
+    return { board, role: member.role };
+};
 
 const handleValidation = (req) => {
     const errors = validationResult(req);
@@ -168,6 +199,9 @@ const uploadTaskImages = async (req, res) => {
 
         const task = await ensureTaskInProject(projectId, taskId);
 
+        // Verificar permisos de edición
+        await assertBoardEditorAccess(projectId, req.user.id);
+
         const saved = await saveImages({
             req,
             projectId,
@@ -198,6 +232,9 @@ const uploadSubtaskImages = async (req, res) => {
         const { projectId, taskId, subtaskId } = req.params;
 
         const subtask = await ensureSubtaskInTask(projectId, taskId, subtaskId);
+
+        // Verificar permisos de edición
+        await assertBoardEditorAccess(projectId, req.user.id);
 
         const saved = await saveImages({
             req,
@@ -234,6 +271,39 @@ const deleteImage = async (req, res) => {
         if (!image) {
             return res.status(404).json({ mensaje: 'Imagen no encontrada.' });
         }
+
+        // Obtener el board ID según el tipo de entidad
+        let boardId = null;
+        if (image.entityType === 'TASK') {
+            const task = await Task.findByPk(image.entityId, {
+                include: [{
+                    model: Column,
+                    as: 'column',
+                    attributes: ['boardId'],
+                }],
+            });
+            boardId = task?.column?.boardId;
+        } else if (image.entityType === 'SUBTASK') {
+            const subtask = await Subtask.findByPk(image.entityId, {
+                include: [{
+                    model: Task,
+                    as: 'task',
+                    include: [{
+                        model: Column,
+                        as: 'column',
+                        attributes: ['boardId'],
+                    }],
+                }],
+            });
+            boardId = subtask?.task?.column?.boardId;
+        }
+
+        if (!boardId) {
+            return res.status(404).json({ mensaje: 'No se pudo verificar el tablero de la imagen.' });
+        }
+
+        // Verificar permisos de edición
+        await assertBoardEditorAccess(boardId, req.user.id);
 
         const publicRoot = path.join(__dirname, '..', '..', 'public', 'img');
         const absolutePath = path.join(publicRoot, image.storagePath);

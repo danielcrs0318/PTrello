@@ -19,7 +19,7 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
     const [form, setForm] = useState({ title: '', description: '' });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
-    
+
     // Estados para el menú y dialogs
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -118,15 +118,15 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                 {/* Encabezado de columna */}
                 <div className="px-3 py-2.5 flex items-center justify-between">
                     <h3 className="text-white font-semibold text-sm sm:text-base truncate">{column.name}</h3>
-                    <IconButton 
-                        size="small" 
+                    <IconButton
+                        size="small"
                         onClick={handleMenuOpen}
-                        sx={{ 
-                            color: 'rgba(255,255,255,0.7)', 
-                            '&:hover': { 
+                        sx={{
+                            color: 'rgba(255,255,255,0.7)',
+                            '&:hover': {
                                 color: 'white',
-                                bgcolor: 'rgba(255,255,255,0.1)' 
-                            } 
+                                bgcolor: 'rgba(255,255,255,0.1)'
+                            }
                         }}
                     >
                         <MoreHoriz fontSize="small" />
@@ -172,6 +172,7 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                                 task={task}
                                 columnId={column.id}
                                 onTaskClick={onTaskClick}
+                                canEdit={canEdit}
                             />
                         ))}
                         {tasks.length === 0 && !composerOpen && (
@@ -207,8 +208,8 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                             />
                             {error && <span className="text-red-400 text-xs block px-1">{error}</span>}
                             <div className="flex items-center gap-2">
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     disabled={submitting || !canEdit}
                                     className="bg-[#579dff] hover:bg-[#85b8ff] text-white text-sm font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50"
                                 >
@@ -229,8 +230,8 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                         </form>
                     ) : (
                         <div className="space-y-1">
-                            <button 
-                                type="button" 
+                            <button
+                                type="button"
                                 onClick={() => {
                                     if (!canEdit) {
                                         setError('No tienes permisos para crear tareas en este tablero.');
@@ -253,8 +254,8 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
             </div>
 
             {/* Dialog para editar nombre */}
-            <Dialog 
-                open={editDialogOpen} 
+            <Dialog
+                open={editDialogOpen}
                 onClose={() => !submitting && setEditDialogOpen(false)}
                 maxWidth="xs"
                 fullWidth
@@ -296,16 +297,16 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                     />
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button 
+                    <Button
                         onClick={() => setEditDialogOpen(false)}
                         sx={{ color: '#9fadbc' }}
                     >
                         Cancelar
                     </Button>
-                    <Button 
+                    <Button
                         onClick={handleEditSave}
                         variant="contained"
-                        sx={{ 
+                        sx={{
                             bgcolor: '#579dff',
                             '&:hover': { bgcolor: '#4c8adb' }
                         }}
@@ -316,8 +317,8 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
             </Dialog>
 
             {/* Dialog para confirmar eliminación */}
-            <Dialog 
-                open={deleteDialogOpen} 
+            <Dialog
+                open={deleteDialogOpen}
                 onClose={() => !isDeleting && setDeleteDialogOpen(false)}
                 maxWidth="xs"
                 fullWidth
@@ -335,24 +336,24 @@ export const Column = memo(({ column, tasks, columnProgress, onCreateTask, onTas
                     </p>
                     {tasks.length > 0 && (
                         <p className="text-yellow-500 mt-3 text-sm">
-                            ⚠️ Esta lista contiene {tasks.length} tarjeta{tasks.length !== 1 ? 's' : ''}. 
+                            ⚠️ Esta lista contiene {tasks.length} tarjeta{tasks.length !== 1 ? 's' : ''}.
                             Todas las tarjetas y sus subtareas serán eliminadas permanentemente.
                         </p>
                     )}
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button 
+                    <Button
                         onClick={() => setDeleteDialogOpen(false)}
                         disabled={isDeleting}
                         sx={{ color: '#9fadbc' }}
                     >
                         Cancelar
                     </Button>
-                    <Button 
+                    <Button
                         onClick={handleDeleteConfirm}
                         disabled={isDeleting}
                         variant="contained"
-                        sx={{ 
+                        sx={{
                             bgcolor: '#ef4444',
                             '&:hover': { bgcolor: '#dc2626' },
                             '&:disabled': { bgcolor: '#9fadbc' }

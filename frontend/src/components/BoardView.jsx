@@ -15,6 +15,7 @@ import { apiClient } from '../services/api.js';
 import { Column } from './Column.jsx';
 import { TaskCard } from './TaskCard.jsx';
 import { TaskModal } from './TaskModal.jsx';
+import { useToast } from '../hooks/useToast.jsx';
 
 const normaliseTask = (task) => ({
     id: task.id,
@@ -83,6 +84,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
     const [newColumnName, setNewColumnName] = useState('');
     const dragOriginRef = useRef(null);
     const initialTaskOpenedRef = useRef(false);
+    const { showToast, ToastComponent } = useToast();
 
     useEffect(() => {
         initialTaskOpenedRef.current = false;
@@ -134,7 +136,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
             } catch (requestError) {
                 if (!cancelled) {
                     console.error('No fue posible obtener el tablero seleccionado:', requestError);
-                    
+
                     // Si es un error 403, el usuario no tiene acceso al tablero
                     if (requestError.response?.status === 403) {
                         setError('No tienes acceso a este tablero.');
@@ -193,16 +195,16 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
             filtered[columnId] = tasks.filter(task => {
                 // Filtro de estado completo/incompleto (basado en subtareas)
                 const hasSubtasks = task.subtasks && task.subtasks.length > 0;
-                const isCompleted = hasSubtasks 
+                const isCompleted = hasSubtasks
                     ? task.subtasks.every(st => st.completed)
                     : false;
-                
+
                 if (isCompleted && !filters.showCompleted) return false;
                 if (!isCompleted && !filters.showIncomplete) return false;
 
                 // Filtro de características
                 if (filters.hasSubtasks && !hasSubtasks) return false;
-                
+
                 // Verificar si alguna subtarea tiene fecha de vencimiento
                 const hasDueDate = task.subtasks?.some(st => st.dueDate);
                 if (filters.hasDueDate && !hasDueDate) return false;
@@ -210,7 +212,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
                 // Filtro de vencidas
                 if (filters.overdue) {
                     const now = new Date();
-                    const hasOverdueSubtask = task.subtasks?.some(st => 
+                    const hasOverdueSubtask = task.subtasks?.some(st =>
                         st.dueDate && new Date(st.dueDate) < now && !st.completed
                     );
                     if (!hasOverdueSubtask) return false;
@@ -219,7 +221,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
                 return true;
             });
         });
-        
+
         setFilteredTasksByColumn(filtered);
     }, [filters, tasksByColumn]);
 
@@ -261,6 +263,10 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
     };
 
     const handleDragStart = (event) => {
+        if (!canEdit) {
+            showToast('No tienes permisos para mover tareas en este tablero.', 'warning');
+            return;
+        }
         const { active } = event;
         if (active.data.current?.type === 'task') {
             const columnProgress = metrics.columnProgress?.[active.data.current.columnId] ?? 0;
@@ -317,11 +323,11 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
             const normalisedColumns = normaliseColumns(response.data.columns);
             const updatedTasks = mapTasks(response.data.columns);
             const computedMetrics = computeMetrics(normalisedColumns, updatedTasks);
-            
+
             setColumns(normalisedColumns);
             setTasksByColumn(updatedTasks);
             setMetrics(computedMetrics);
-            
+
             if (selectedTask) {
                 const updatedTask = response.data.columns
                     .flatMap(col => col.tasks)
@@ -337,6 +343,11 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
 
     const handleCreateColumn = async () => {
         if (!newColumnName.trim()) return;
+
+        if (!canEdit) {
+            showToast('No tienes permisos para crear columnas en este tablero.', 'warning');
+            return;
+        }
 
         try {
             const response = await apiClient.post(`/boards/${boardId}/columns`, {
@@ -359,13 +370,17 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
     };
 
     const handleUpdateColumn = async (columnId, newName) => {
+        if (!canEdit) {
+            showToast('No tienes permisos para editar columnas en este tablero.', 'warning');
+            throw new Error('Sin permisos');
+        }
         try {
             await apiClient.put(`/boards/columns/${columnId}`, {
                 name: newName,
             });
 
             // Actualizar el estado local
-            setColumns(columns.map(col => 
+            setColumns(columns.map(col =>
                 col.id === columnId ? { ...col, name: newName } : col
             ));
         } catch (error) {
@@ -375,17 +390,21 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
     };
 
     const handleDeleteColumn = async (columnId) => {
+        if (!canEdit) {
+            showToast('No tienes permisos para eliminar columnas en este tablero.', 'warning');
+            throw new Error('Sin permisos');
+        }
         try {
             await apiClient.delete(`/boards/columns/${columnId}`);
 
             // Actualizar el estado local
             setColumns(columns.filter(col => col.id !== columnId));
-            
+
             // Eliminar las tareas de esa columna del estado
             const newTasksByColumn = { ...tasksByColumn };
             delete newTasksByColumn[columnId];
             setTasksByColumn(newTasksByColumn);
-            
+
             // Recalcular métricas
             const computedMetrics = computeMetrics(
                 columns.filter(col => col.id !== columnId),
@@ -529,6 +548,9 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
                 await apiClient.put(`/tasks/${active.id}`, { columnId: targetColumnId });
             } catch (requestError) {
                 console.error('No fue posible actualizar la tarea arrastrada:', requestError);
+                if (requestError.response?.status === 403) {
+                    showToast('No tienes permisos para mover tareas en este tablero.', 'error');
+                }
                 setTasksByColumn(previousState);
                 setMetrics(computeMetrics(columns, previousState));
             }
@@ -591,7 +613,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
                             canEdit={canEdit}
                         />
                     ))}
-                    
+
                     {/* Botón para agregar otra lista */}
                     <div className="flex-shrink-0 w-full sm:w-[272px] md:w-[280px] lg:w-[300px]">
                         {isCreatingColumn ? (
@@ -636,7 +658,7 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
                                 </div>
                             </div>
                         ) : (
-                            <button 
+                            <button
                                 onClick={() => setIsCreatingColumn(true)}
                                 className="w-full h-auto min-h-[44px] flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white text-sm font-normal transition-colors"
                             >
@@ -661,8 +683,11 @@ export const BoardView = ({ boardId, onBoardReady, filters, isOwner, initialTask
                 onTaskUpdate={handleTaskUpdate}
                 boardId={boardId}
                 isOwner={isOwner}
+                canEdit={canEdit}
                 initialSubtaskId={initialSubtaskId}
             />
+
+            <ToastComponent />
         </>
     );
 };
