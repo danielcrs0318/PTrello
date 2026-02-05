@@ -131,6 +131,14 @@ export const BoardPage = () => {
     };
 
     const handleBackgroundChange = async (newBackground) => {
+        if (boardInfo && boardInfo.canEdit === false) {
+            setSummaryMessage({
+                type: 'warning',
+                text: 'No tienes permitido cambiar el color del tablero.',
+            });
+            handleColorMenuClose();
+            return;
+        }
         try {
             await apiClient.put(`/boards/${boardId}`, {
                 backgroundColor: newBackground
@@ -139,6 +147,18 @@ export const BoardPage = () => {
             handleColorMenuClose();
         } catch (error) {
             console.error('Error al actualizar el color de fondo:', error);
+            if (error.response?.status === 403) {
+                setSummaryMessage({
+                    type: 'warning',
+                    text: error.response?.data?.mensaje || 'No tienes permitido cambiar el color del tablero.',
+                });
+                handleColorMenuClose();
+            } else {
+                setSummaryMessage({
+                    type: 'error',
+                    text: 'No fue posible actualizar el color del tablero.',
+                });
+            }
         }
     };
 
