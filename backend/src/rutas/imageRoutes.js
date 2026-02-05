@@ -15,17 +15,18 @@ const {
     listTaskImages,
     listSubtaskImages,
 } = require('../controladores/imageController');
-const { isMimeAllowed } = require('../servicios/imageStorage');
+const { isMimeAllowed, getAllowedImageExtensions } = require('../servicios/imageStorage');
 
 const router = Router();
 const requireAuth = passport.authenticate('jwt', { session: false });
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 15 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
         if (!isMimeAllowed(file.mimetype)) {
-            return cb(new Error('Formato de imagen no permitido.'));
+            const allowedList = getAllowedImageExtensions().map((ext) => `.${ext}`).join(', ');
+            return cb(new Error(`Tipo de imagen no permitido. Se aceptan: ${allowedList}`));
         }
         return cb(null, true);
     },
@@ -33,6 +34,12 @@ const upload = multer({
 
 const handleMulterError = (err, _req, res, next) => {
     if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+            mensaje: 'Imagen demasiado grande. Máximo 15 MB por archivo.',
+            error: err.message,
+        });
+    }
     return res.status(400).json({
         mensaje: 'Error al procesar archivos.',
         error: err.message,

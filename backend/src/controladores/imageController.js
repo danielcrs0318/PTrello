@@ -19,6 +19,8 @@ const {
     ensureDir,
     buildPublicUrl,
     isMimeAllowed,
+    getAllowedImageExtensions,
+    compressImage,
     normalizePath,
 } = require('../servicios/imageStorage');
 
@@ -130,14 +132,16 @@ const saveImages = async ({
 
     for (const file of files) {
         if (!isMimeAllowed(file.mimetype)) {
-            const error = new Error('Formato de imagen no permitido.');
+            const allowedList = getAllowedImageExtensions().map((ext) => `.${ext}`).join(', ');
+            const error = new Error(`Formato de imagen no permitido. Se aceptan: ${allowedList}`);
             error.status = 400;
             throw error;
         }
 
         const fileName = buildFileName(file.originalname);
         const absolutePath = path.join(absoluteFolder, fileName);
-        await fs.writeFile(absolutePath, file.buffer);
+        const processedBuffer = await compressImage(file.buffer, file.mimetype);
+        await fs.writeFile(absolutePath, processedBuffer);
 
         const storagePath = normalizePath(path.join(baseFolder, fileName));
         const imageUrl = buildPublicUrl(req, storagePath);

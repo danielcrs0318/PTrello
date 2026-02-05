@@ -6,8 +6,10 @@
 const path = require('path');
 const fs = require('fs/promises');
 const crypto = require('crypto');
+const sharp = require('sharp');
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
 const normalizePath = (value) => value.replace(/\\/g, '/');
 
@@ -57,12 +59,36 @@ const buildPublicUrl = (req, relativePath) => {
 
 const isMimeAllowed = (mimeType) => ALLOWED_MIME.has(mimeType);
 
+const getAllowedImageExtensions = () => [...ALLOWED_EXTENSIONS];
+
+const compressImage = async (buffer, mimeType) => {
+    if (!isMimeAllowed(mimeType)) {
+        return buffer;
+    }
+
+    const image = sharp(buffer).rotate();
+
+    switch (mimeType) {
+        case 'image/jpeg':
+        case 'image/jpg':
+            return image.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
+        case 'image/png':
+            return image.png({ quality: 80, compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+        case 'image/webp':
+            return image.webp({ quality: 80 }).toBuffer();
+        default:
+            return buffer;
+    }
+};
+
 module.exports = {
     buildImageFolder,
     buildFileName,
     ensureDir,
     buildPublicUrl,
     isMimeAllowed,
+    getAllowedImageExtensions,
+    compressImage,
     normalizePath,
     slugify,
 };

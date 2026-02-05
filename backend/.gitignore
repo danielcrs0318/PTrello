@@ -13,4 +13,6 @@ pids
 *.pid
 public/img/
 tmp
+*.sqlite
+node_modules/
 
