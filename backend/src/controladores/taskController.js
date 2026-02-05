@@ -259,6 +259,14 @@ const updateTask = async (req, res) => {
             updates.description = description;
         }
         if (dueDate !== undefined) {
+            if (dueDate !== null) {
+                const subtaskCount = await Subtask.count({ where: { taskId: task.id } });
+                if (subtaskCount > 0) {
+                    return res.status(400).json({
+                        mensaje: 'No se puede asignar fecha a una tarea con subtareas.'
+                    });
+                }
+            }
             updates.dueDate = dueDate;
         }
         if (typeof completed === 'boolean') {

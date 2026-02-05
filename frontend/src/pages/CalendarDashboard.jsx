@@ -91,6 +91,17 @@ export const CalendarDashboard = () => {
         info.el.classList.remove('fc-event-hover');
     };
 
+    const handleEventDidMount = (info) => {
+        const { event } = info;
+        const { boardName, columnName } = event.extendedProps || {};
+        const meta = [boardName, columnName].filter(Boolean).join(' • ');
+        const tooltip = meta ? `${event.title} — ${meta}` : event.title;
+        info.el.setAttribute('title', tooltip);
+        info.el.setAttribute('data-tooltip', tooltip);
+        info.el.setAttribute('aria-label', tooltip);
+        info.el.classList.add('fc-event-tooltip');
+    };
+
     return (
         <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.bg.primary }}>
             <header className="border-b" style={{ borderColor: colors.border.primary }}>
@@ -153,6 +164,7 @@ export const CalendarDashboard = () => {
                             eventClick={handleEventClick}
                             eventMouseEnter={handleEventMouseEnter}
                             eventMouseLeave={handleEventMouseLeave}
+                            eventDidMount={handleEventDidMount}
                             height="auto"
                             dayMaxEventRows={3}
                             nowIndicator

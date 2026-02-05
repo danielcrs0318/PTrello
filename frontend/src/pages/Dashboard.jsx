@@ -130,6 +130,17 @@ export const Dashboard = () => {
                         >
                             {isDark ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
                         </IconButton>
+
+                        {/* Acceso rápido al calendario (responsive) */}
+                        <IconButton
+                            onClick={() => navigate('/calendar')}
+                            size="small"
+                            className="w-8 h-8"
+                            sx={{ color: colors.text.primary }}
+                            title="Calendario"
+                        >
+                            <CalendarMonth fontSize="small" />
+                        </IconButton>
                         
                         {/* Campanita de notificaciones */}
                         <NotificationBell />

@@ -76,6 +76,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner,
     const [highlightedSubtaskId, setHighlightedSubtaskId] = useState(null);
     const subtaskRefs = useRef({});
     const highlightTimeoutRef = useRef(null);
+    const hasSubtasks = subtasks.length > 0;
 
     const isAnchorValid = (anchor) => Boolean(anchor && anchor.isConnected);
 
@@ -493,6 +494,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner,
 
     const handleTaskDateClick = (event) => {
         event.stopPropagation();
+        if (hasSubtasks) return;
         setTaskTempDate(taskDueDate ? dayjs(taskDueDate) : dayjs());
         setTaskDateAnchorEl(event.currentTarget);
     };
@@ -753,11 +755,13 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner,
                         <Button
                             size="small"
                             onClick={handleTaskDateClick}
+                            disabled={hasSubtasks}
                             sx={{
                                 color: '#9fadbc',
                                 borderColor: '#3c434a',
                                 textTransform: 'none',
                                 '&:hover': { borderColor: '#579dff', color: 'white' },
+                                '&.Mui-disabled': { color: '#5b6470', borderColor: '#3c434a' },
                             }}
                             variant="outlined"
                         >
@@ -768,16 +772,23 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner,
                             <Button
                                 size="small"
                                 onClick={handleTaskDateClear}
+                                disabled={hasSubtasks}
                                 sx={{
                                     color: '#9fadbc',
                                     textTransform: 'none',
                                     '&:hover': { color: '#ef4444' },
+                                    '&.Mui-disabled': { color: '#5b6470' },
                                 }}
                             >
                                 Quitar fecha
                             </Button>
                         )}
                     </Box>
+                    {hasSubtasks && (
+                        <Typography variant="caption" sx={{ color: '#9fadbc' }}>
+                            Para asignar fecha a la tarea, primero elimina sus subtareas.
+                        </Typography>
+                    )}
                 </Box>
                 <Box sx={{ mb: 3 }}>
                     <Typography variant="subtitle2" sx={{ color: '#9fadbc', mb: 1 }}>
