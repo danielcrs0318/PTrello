@@ -24,7 +24,7 @@ import {
     InputAdornment,
     DialogActions
 } from '@mui/material';
-import { Close, Add, CheckBox, CheckBoxOutlineBlank, Delete, CalendarMonth, Palette, Edit, DescriptionOutlined, MoreVert, Check, Search, Photo } from '@mui/icons-material';
+import { Close, Add, CheckBox, CheckBoxOutlineBlank, Delete, CalendarMonth, Palette, Edit, DescriptionOutlined, MoreVert, Check, Search, Photo, Groups } from '@mui/icons-material';
 import { StaticDateTimePicker } from '@mui/x-date-pickers/StaticDateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -1597,7 +1597,7 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
                             handleSubtaskMenuClose();
                         }}
                     >
-                        <DescriptionOutlined fontSize="small" style={{ marginRight: 8 }} /> Responsable
+                        <Groups fontSize="small" style={{ marginRight: 8 }} /> Responsable
                     </MenuItem>
                 )}
                 <MenuItem

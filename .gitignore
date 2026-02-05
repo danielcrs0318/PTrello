@@ -1,0 +1,30 @@
+# Node
+node_modules/
+**/node_modules/
+
+# Builds
+frontend/dist/
+backend/dist/
+backend/build/
+frontend/build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploaded images / generated assets
+backend/public/img/projects/
+backend/public/img/projects/**
+
+# Vite
+frontend/.vite/
