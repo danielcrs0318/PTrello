@@ -160,11 +160,11 @@ body {
     z-index: 20;
 }
 
-.calendar-root .fc-event.fc-event-tooltip:hover::after,
-.calendar-root .fc-event.fc-event-tooltip:focus::after,
-.calendar-root .fc-event.fc-event-tooltip:active::after {
-    opacity: 1;
-    transform: translateY(0);
+@media (hover: none) and (pointer: coarse) {
+    .calendar-root .fc-timeGridWeek-view .fc-event.fc-event-tooltip.fc-event-touch-open::after {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes calendar-fade-in {

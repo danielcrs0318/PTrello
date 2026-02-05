@@ -92,14 +92,29 @@ export const CalendarDashboard = () => {
     };
 
     const handleEventDidMount = (info) => {
-        const { event } = info;
+        const { event, view } = info;
         const { boardName, columnName } = event.extendedProps || {};
         const meta = [boardName, columnName].filter(Boolean).join(' • ');
         const tooltip = meta ? `${event.title} — ${meta}` : event.title;
-        info.el.setAttribute('title', tooltip);
         info.el.setAttribute('data-tooltip', tooltip);
         info.el.setAttribute('aria-label', tooltip);
         info.el.classList.add('fc-event-tooltip');
+
+        if (view?.type !== 'timeGridWeek') {
+            return;
+        }
+
+        const touchHandler = () => {
+            info.el.classList.add('fc-event-touch-open');
+            window.setTimeout(() => {
+                info.el.classList.remove('fc-event-touch-open');
+            }, 1800);
+        };
+
+        info.el.addEventListener('touchstart', touchHandler, { passive: true });
+        info.el.addEventListener('touchend', () => {
+            info.el.classList.remove('fc-event-touch-open');
+        });
     };
 
     return (
