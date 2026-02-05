@@ -71,6 +71,8 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
     const [subtaskMenuAnchorEl, setSubtaskMenuAnchorEl] = useState(null);
     const [subtaskMenuTarget, setSubtaskMenuTarget] = useState(null);
 
+    const isAnchorValid = (anchor) => Boolean(anchor && anchor.isConnected);
+
     const colors = [
         { name: 'Sin color', value: null },
         { name: 'Verde', value: '#4ade80' },
@@ -95,6 +97,14 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
         setTaskImages([]);
         setSubtaskImages({});
     }, [task]);
+
+    useEffect(() => {
+        if (!open) {
+            setColorAnchorEl(null);
+            setDateAnchorEl(null);
+            setSelectedSubtask(null);
+        }
+    }, [open]);
 
     useEffect(() => {
         if (!open || !task || !boardId) return;
@@ -362,14 +372,16 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
     const handleColorClick = (event, subtask) => {
         event.stopPropagation();
         setSelectedSubtask(subtask);
-        setColorAnchorEl(event.currentTarget);
+        const anchor = subtaskMenuAnchorEl || event.currentTarget;
+        setColorAnchorEl(anchor);
     };
 
     const handleDateClick = (event, subtask) => {
         event.stopPropagation();
         setSelectedSubtask(subtask);
         setTempDate(subtask.dueDate ? dayjs(subtask.dueDate) : dayjs());
-        setDateAnchorEl(event.currentTarget);
+        const anchor = subtaskMenuAnchorEl || event.currentTarget;
+        setDateAnchorEl(anchor);
     };
 
     const handleSubtaskMenuOpen = (event, subtask) => {
@@ -1412,8 +1424,8 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
 
             {/* Popover para seleccionar color */}
             <Popover
-                open={Boolean(colorAnchorEl)}
-                anchorEl={colorAnchorEl}
+                open={isAnchorValid(colorAnchorEl)}
+                anchorEl={isAnchorValid(colorAnchorEl) ? colorAnchorEl : null}
                 onClose={() => {
                     setColorAnchorEl(null);
                     setSelectedSubtask(null);
@@ -1456,8 +1468,8 @@ export const TaskModal = ({ open, onClose, task, onTaskUpdate, boardId, isOwner 
 
             {/* Popover para seleccionar fecha */}
             <Popover
-                open={Boolean(dateAnchorEl)}
-                anchorEl={dateAnchorEl}
+                open={isAnchorValid(dateAnchorEl)}
+                anchorEl={isAnchorValid(dateAnchorEl) ? dateAnchorEl : null}
                 onClose={() => {
                     setDateAnchorEl(null);
                     setSelectedSubtask(null);

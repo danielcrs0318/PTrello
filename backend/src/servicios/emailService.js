@@ -510,6 +510,142 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
 }
 
 /**
+ * Envía un email con el resumen de tareas y subtareas pendientes
+ * @param {Object} options - Opciones del email
+ * @param {string} options.to - Email del destinatario
+ * @param {string} options.userName - Nombre del usuario
+ * @param {Array} options.boardsSummary - Array con resumen de pendientes por tablero
+ * @returns {Promise<Object>} Resultado del envío con success y messageId o error
+ */
+async function sendPendingSummary({ to, userName, boardsSummary }) {
+  try {
+    const today = new Date().toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const formatDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toLocaleDateString('es-ES');
+    };
+
+    let boardsHtml = '';
+    boardsSummary.forEach((board) => {
+      const tasks = Array.isArray(board.tasks) ? board.tasks : [];
+
+      boardsHtml += `
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h3 style="margin: 0 0 12px 0; color: #333; font-size: 18px; border-bottom: 2px solid #667eea; padding-bottom: 8px;">
+            ${board.name}
+          </h3>
+          ${tasks.length === 0 ? `
+            <div style="font-size: 13px; color: #6b7280;">Sin tareas pendientes</div>
+          ` : tasks.map(task => `
+            <div style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+              <div style="font-size: 13px; color: #111; font-weight: 600;">
+                ${task.title} ${task.column ? `<span style=\"color:#6b7280;font-weight:400;\">(${task.column})</span>` : ''}
+              </div>
+              ${task.description ? `<div style="font-size: 12px; color: #4b5563; margin-top: 3px;">${task.description}</div>` : ''}
+              ${task.dueDate || task.color ? `
+                <div style="font-size: 12px; color: #6b7280; margin-top: 3px;">
+                  ${task.dueDate ? `Vence: ${formatDate(task.dueDate)}` : ''}${task.dueDate && task.color ? ' • ' : ''}${task.color ? `Color: ${task.color}` : ''}
+                </div>
+              ` : ''}
+              <div style="font-size: 12px; color: #374151; margin-top: 4px;">
+                Responsable(s):&nbsp;${task.assignees.length ? task.assignees.join(', ') : 'Sin responsable'}
+              </div>
+              ${task.subtasks && task.subtasks.length > 0 ? `
+                <div style="margin-top: 6px; padding-left: 10px;">
+                  <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Subtareas pendientes</div>
+                  ${task.subtasks.map(st => `
+                    <div style="font-size: 12px; color: #374151; padding: 2px 0;">
+                      <div style="display: flex; justify-content: space-between; gap: 8px;">
+                        <span>⬜ ${st.title}</span>
+                        <span style="color: #6b7280;">&nbsp;—&nbsp;${st.assignees.length ? st.assignees.join(', ') : 'Sin responsable'}</span>
+                      </div>
+                      ${st.description ? `<div style="color: #4b5563; margin-top: 2px;">${st.description}</div>` : ''}
+                      ${st.dueDate || st.color ? `
+                        <div style="color: #6b7280; margin-top: 2px;">
+                          ${st.dueDate ? `Vence: ${formatDate(st.dueDate)}` : ''}${st.dueDate && st.color ? ' • ' : ''}${st.color ? `Color: ${st.color}` : ''}
+                        </div>
+                      ` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    });
+
+    if (boardsSummary.length === 0) {
+      boardsHtml = `
+        <div style="background: white; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="color: #999; font-size: 16px; margin: 0;">No hay tareas pendientes</p>
+        </div>
+      `;
+    }
+
+    const data = await resend.emails.send({
+      from: 'SprintFlow <onboarding@resend.dev>',
+      to: [to],
+      subject: `Pendientes - ${today}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Pendientes</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">SprintFlow</h1>
+            <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 16px;">Tareas y subtareas pendientes</p>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="font-size: 16px; margin: 0 0 10px 0;">Hola <strong>${userName}</strong>,</p>
+            <p style="font-size: 14px; color: #666; margin: 0;">Este es tu resumen de pendientes del día <strong>${today}</strong>.</p>
+            </div>
+            ${boardsHtml}
+            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+            Este es un recordatorio automático de SprintFlow.<br>
+            No respondas a este correo.
+            </p>
+          </div>
+          </body>
+        </html>
+      `
+    });
+
+    if (data && data.error) {
+      console.error('Error de Resend:', data.error.message);
+      return { success: false, error: data.error.message };
+    }
+
+    if (data && data.data && data.data.id) {
+      console.log('Email de pendientes enviado con ID:', data.data.id);
+      return { success: true, messageId: data.data.id };
+    } else if (data && data.id) {
+      console.log('Email de pendientes enviado con ID:', data.id);
+      return { success: true, messageId: data.id };
+    }
+
+    console.error('Respuesta inesperada de Resend:', data);
+    return { success: false, error: 'Respuesta inesperada del servidor de email' };
+  } catch (error) {
+    console.error('Error enviando resumen de pendientes:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Envía un email con el PIN de recuperación de contraseña
  * @param {Object} options - Opciones del email
  * @param {string} options.to - Email del destinatario
@@ -585,6 +721,7 @@ async function sendPasswordResetPin({ to, displayName, pin, expiresInMinutes }) 
 module.exports = {
     sendDueDateNotification,
     sendBoardInvitation,
-  sendDailySummary,
-  sendPasswordResetPin
+    sendDailySummary,
+    sendPendingSummary,
+    sendPasswordResetPin
 };

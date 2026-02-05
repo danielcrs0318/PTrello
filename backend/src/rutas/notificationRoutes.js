@@ -7,7 +7,7 @@
 
 const express = require('express');
 const passport = require('passport');
-const { checkDueDates, sendDailyReports } = require('../servicios/notificationScheduler');
+const { checkDueDates, sendDailyReports, sendPendingReports } = require('../servicios/notificationScheduler');
 const { sendDueDateNotification } = require('../servicios/emailService');
 const {
     getNotifications,
@@ -190,4 +190,26 @@ router.post(
     }
 );
 
+            /**
+             * POST /notifications/pending-report
+             * Envía manualmente el resumen de pendientes a los usuarios
+             */
+            router.post(
+                '/pending-report',
+                requireAuth,
+                async (_req, res) => {
+                    try {
+                        await sendPendingReports();
+                        return res.json({
+                            mensaje: 'Resumen de pendientes enviado manualmente',
+                            success: true
+                        });
+                    } catch (error) {
+                        return res.status(500).json({
+                            mensaje: 'Error al enviar el resumen de pendientes',
+                            error: error.message
+                        });
+                    }
+                }
+            );
 module.exports = router;

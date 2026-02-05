@@ -6,7 +6,7 @@
 
 const cron = require('node-cron');
 const { Subtask, Task, Column, Board, User, BoardMember } = require('../configuraciones/initModels');
-const { sendDueDateNotification, sendDailySummary } = require('./emailService');
+const { sendDueDateNotification, sendDailySummary, sendPendingSummary } = require('./emailService');
 const { Op } = require('sequelize');
 
 /**
@@ -95,48 +95,103 @@ async function checkDueDates() {
             return;
         }
 
-        // Enviar notificación para cada subtarea
+        // Agrupar por propietario para enviar un solo correo por usuario
+        const ownersMap = new Map();
+
+        upcomingSubtasks.forEach((subtask) => {
+            const owner = subtask.task.column.board.owner;
+            if (!owner || !owner.email) {
+                console.log(`  Subtarea "${subtask.title}": No se encontró email del propietario`);
+                return;
+            }
+
+            const ownerKey = owner.id;
+            const board = subtask.task.column.board;
+            const task = subtask.task;
+            const column = subtask.task.column;
+
+            const ownerEntry = ownersMap.get(ownerKey) || {
+                owner,
+                boards: new Map(),
+                subtaskIds: [],
+            };
+
+            const boardEntry = ownerEntry.boards.get(board.id) || {
+                name: board.name,
+                tasks: new Map(),
+            };
+
+            const taskAssignees = Array.isArray(task.assignees) && task.assignees.length > 0
+                ? task.assignees
+                : [];
+            const taskAssigneeNames = taskAssignees
+                .map((assignee) => assignee.displayName || assignee.email)
+                .filter(Boolean);
+
+            const taskEntry = boardEntry.tasks.get(task.id) || {
+                title: task.title,
+                description: task.description || null,
+                dueDate: task.dueDate || null,
+                color: task.color || null,
+                assignees: taskAssigneeNames,
+                subtasks: [],
+                column: column.name,
+            };
+
+            const subtaskAssignees = Array.isArray(subtask.assignees) && subtask.assignees.length > 0
+                ? subtask.assignees
+                : (subtask.assignee ? [subtask.assignee] : []);
+            const subtaskAssigneeNames = subtaskAssignees
+                .map((assignee) => assignee.displayName || assignee.email)
+                .filter(Boolean);
+
+            taskEntry.subtasks.push({
+                title: subtask.title,
+                description: subtask.description || null,
+                dueDate: subtask.dueDate || null,
+                color: subtask.color || null,
+                assignees: subtaskAssigneeNames,
+            });
+
+            boardEntry.tasks.set(task.id, taskEntry);
+            ownerEntry.boards.set(board.id, boardEntry);
+            ownerEntry.subtaskIds.push(subtask.id);
+            ownersMap.set(ownerKey, ownerEntry);
+        });
+
         let sentCount = 0;
         let errorCount = 0;
 
-        for (const subtask of upcomingSubtasks) {
+        for (const entry of ownersMap.values()) {
             try {
-                const owner = subtask.task.column.board.owner;
+                const boardsSummary = Array.from(entry.boards.values()).map((boardEntry) => ({
+                    name: boardEntry.name,
+                    tasks: Array.from(boardEntry.tasks.values()),
+                }));
 
-                if (!owner || !owner.email) {
-                    console.log(`  Subtarea "${subtask.title}": No se encontró email del propietario`);
-                    errorCount++;
-                    continue;
-                }
+                console.log(`Enviando resumen de vencimientos a: ${entry.owner.email}`);
+                console.log(`   Tableros incluidos: ${boardsSummary.length}`);
 
-                console.log(`Enviando notificación:`);
-                console.log(`   Subtarea: "${subtask.title}"`);
-                console.log(`   Tarea: "${subtask.task.title}"`);
-                console.log(`   Tablero: "${subtask.task.column.board.name}"`);
-                console.log(`   Destinatario: ${owner.email}`);
-                console.log(`   Vencimiento: ${new Date(subtask.dueDate).toLocaleString('es-ES')}`);
-
-                const result = await sendDueDateNotification({
-                    to: owner.email,
-                    boardName: subtask.task.column.board.name,
-                    taskTitle: subtask.task.title,
-                    subtaskTitle: subtask.title,
-                    dueDate: subtask.dueDate
+                const result = await sendPendingSummary({
+                    to: entry.owner.email,
+                    userName: entry.owner.displayName || 'Usuario',
+                    boardsSummary,
                 });
 
                 if (result.success) {
-                    // Marcar como notificada
-                    subtask.notificationSentAt = new Date();
-                    await subtask.save();
+                    await Subtask.update(
+                        { notificationSentAt: new Date() },
+                        { where: { id: { [Op.in]: entry.subtaskIds } } }
+                    );
                     sentCount++;
-                    console.log(`   ✅ Notificación enviada exitosamente (ID: ${result.messageId})`);
+                    console.log(`   ✅ Resumen enviado exitosamente (ID: ${result.messageId})`);
                 } else {
                     errorCount++;
                     console.log(`   ❌ Error: ${result.error}`);
                 }
             } catch (error) {
                 errorCount++;
-                console.error(`   Error enviando notificación para subtarea ${subtask.id}:`, error.message);
+                console.error(`   Error enviando resumen para ${entry.owner.email}:`, error.message);
             }
         }
 
@@ -377,6 +432,165 @@ async function sendDailyReports() {
 }
 
 /**
+ * Genera y envía el resumen de tareas y subtareas pendientes
+ * @returns {Promise<void>}
+ */
+async function sendPendingReports() {
+    try {
+        console.log('\n========================================');
+        console.log('Generando resumen de pendientes...');
+        console.log(`   Fecha: ${new Date().toLocaleString('es-ES')}`);
+
+        const users = await User.findAll({
+            include: [{
+                model: Board,
+                as: 'ownedBoards',
+                attributes: ['id', 'name'],
+                required: true,
+            }],
+            distinct: true,
+            subQuery: false,
+        });
+
+        let sentCount = 0;
+        let errorCount = 0;
+
+        for (const user of users) {
+            try {
+                if (!user.email) {
+                    console.log(`  Usuario sin email (ID: ${user.id})`);
+                    errorCount++;
+                    continue;
+                }
+
+                const boardsSummary = [];
+
+                for (const board of user.ownedBoards) {
+                    const columns = await Column.findAll({
+                        where: { boardId: board.id },
+                        include: [{
+                            model: Task,
+                            as: 'tasks',
+                            include: [
+                                {
+                                    model: Subtask,
+                                    as: 'subtasks',
+                                    include: [
+                                        {
+                                            model: User,
+                                            as: 'assignees',
+                                            attributes: ['id', 'displayName', 'email'],
+                                            through: { attributes: [] }
+                                        },
+                                        {
+                                            model: User,
+                                            as: 'assignee',
+                                            attributes: ['id', 'displayName', 'email']
+                                        }
+                                    ]
+                                },
+                                {
+                                    model: User,
+                                    as: 'assignees',
+                                    attributes: ['id', 'displayName', 'email'],
+                                    through: { attributes: [] }
+                                }
+                            ]
+                        }],
+                        order: [['position', 'ASC']]
+                    });
+
+                    const pendingTasks = [];
+
+                    columns.forEach((column) => {
+                        (column.tasks || []).forEach((task) => {
+                            const pendingSubtasks = (task.subtasks || []).filter((subtask) => !subtask.completed)
+                                .map((subtask) => {
+                                    const assignees = Array.isArray(subtask.assignees) && subtask.assignees.length > 0
+                                        ? subtask.assignees
+                                        : (subtask.assignee ? [subtask.assignee] : []);
+                                    const assigneeNames = assignees
+                                        .map((assignee) => assignee.displayName || assignee.email)
+                                        .filter(Boolean);
+
+                                    return {
+                                        title: subtask.title,
+                                        description: subtask.description || null,
+                                        dueDate: subtask.dueDate || null,
+                                        color: subtask.color || null,
+                                        assignees: assigneeNames,
+                                    };
+                                });
+
+                            const isTaskPending = task.completed === false;
+                            const hasPendingSubtasks = pendingSubtasks.length > 0;
+
+                            if (!isTaskPending && !hasPendingSubtasks) {
+                                return;
+                            }
+
+                            const taskAssignees = Array.isArray(task.assignees) && task.assignees.length > 0
+                                ? task.assignees
+                                : [];
+                            const taskAssigneeNames = taskAssignees
+                                .map((assignee) => assignee.displayName || assignee.email)
+                                .filter(Boolean);
+
+                            pendingTasks.push({
+                                title: task.title,
+                                description: task.description || null,
+                                dueDate: task.dueDate || null,
+                                color: task.color || null,
+                                assignees: taskAssigneeNames,
+                                subtasks: pendingSubtasks,
+                                column: column.name,
+                            });
+                        });
+                    });
+
+                    if (pendingTasks.length > 0) {
+                        boardsSummary.push({
+                            name: board.name,
+                            tasks: pendingTasks,
+                        });
+                    }
+                }
+
+                if (boardsSummary.length > 0) {
+                    console.log(`Enviando pendientes a: ${user.email}`);
+                    const result = await sendPendingSummary({
+                        to: user.email,
+                        userName: user.displayName || 'Usuario',
+                        boardsSummary,
+                    });
+
+                    if (result.success) {
+                        sentCount++;
+                        console.log(`   Resumen enviado exitosamente (ID: ${result.messageId})`);
+                    } else {
+                        errorCount++;
+                        console.log(`   Error: ${result.error}`);
+                    }
+                } else {
+                    console.log(`  ${user.email}: Sin pendientes para reportar`);
+                }
+            } catch (error) {
+                errorCount++;
+                console.error(`   Error generando pendientes para usuario ${user.id}:`, error.message);
+            }
+        }
+
+        console.log('\nResumen:');
+        console.log(`   Enviados: ${sentCount}`);
+        console.log(`   Errores: ${errorCount}`);
+        console.log(`   Total procesados: ${users.length}`);
+        console.log('========================================\n');
+    } catch (error) {
+        console.error('Error generando resumen de pendientes:', error);
+    }
+}
+
+/**
  * Inicia el programador de notificaciones
  * Configura un cron job que se ejecuta cada 5 minutos
  * @returns {void}
@@ -406,5 +620,6 @@ function startNotificationScheduler() {
 module.exports = {
     startNotificationScheduler,
     checkDueDates,
-    sendDailyReports
+    sendDailyReports,
+    sendPendingReports
 };
