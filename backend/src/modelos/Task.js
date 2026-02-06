@@ -17,6 +17,7 @@ const sequelize = require('../configuraciones/sequelize');
  * @property {string} color - Color de la tarea (opcional)
  * @property {string} columnId - ID de la columna a la que pertenece (clave foránea)
  * @property {string} assigneeId - ID del usuario asignado (clave foránea, opcional)
+ * @property {Date} notificationSentAt - Fecha en que se envió la notificación (opcional)
  */
 const Task = sequelize.define('tasks', {
     id: {
@@ -45,6 +46,12 @@ const Task = sequelize.define('tasks', {
         type: DataTypes.STRING,
         allowNull: true,
         defaultValue: null,
+    },
+    notificationSentAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+        field: 'notification_sent_at',
     },
 });
 

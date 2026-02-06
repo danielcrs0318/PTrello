@@ -9,6 +9,13 @@ const { Subtask, Task, Column, Board, User, BoardMember } = require('../configur
 const { sendDueDateNotification, sendDailySummary, sendPendingSummary } = require('./emailService');
 const { Op } = require('sequelize');
 
+const IN_PROGRESS_KEYWORDS = ['progreso', 'proceso', 'trabajando', 'progress', 'doing'];
+
+const isInProgressColumn = (columnName = '') => {
+    const normalized = columnName.toLowerCase();
+    return IN_PROGRESS_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
 /**
  * Verifica las subtareas que están próximas a vencer y envía notificaciones
  * Busca subtareas no completadas con vencimiento en las próximas 24 horas
@@ -46,23 +53,27 @@ async function checkDueDates() {
                 completed: false,
                 dueDate: {
                     [Op.and]: [
-                        { [Op.gte]: now },      // Mayor o igual a ahora
-                        { [Op.lte]: tomorrow }  // Menor o igual a mañana
-                    ]
+                        { [Op.gte]: now },
+                        { [Op.lte]: tomorrow },
+                    ],
                 },
-                // Solo subtareas que aún no han sido notificadas
-                // o que fueron notificadas hace más de 23 horas
                 [Op.or]: [
                     { notificationSentAt: null },
-                    { notificationSentAt: { [Op.lt]: new Date(now.getTime() - 23 * 60 * 60 * 1000) } }
-                ]
+                    { notificationSentAt: { [Op.lt]: new Date(now.getTime() - 23 * 60 * 60 * 1000) } },
+                ],
             },
             include: [
                 {
                     model: Task,
                     as: 'task',
-                    attributes: ['id', 'title'],
+                    attributes: ['id', 'title', 'description', 'dueDate', 'color'],
                     include: [
+                        {
+                            model: User,
+                            as: 'assignees',
+                            attributes: ['id', 'displayName', 'email'],
+                            through: { attributes: [] },
+                        },
                         {
                             model: Column,
                             as: 'column',
@@ -76,21 +87,76 @@ async function checkDueDates() {
                                         {
                                             model: User,
                                             as: 'owner',
-                                            attributes: ['id', 'email', 'displayName']
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+                                            attributes: ['id', 'email', 'displayName'],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    model: User,
+                    as: 'assignees',
+                    attributes: ['id', 'displayName', 'email'],
+                    through: { attributes: [] },
+                },
+            ],
         });
 
-        console.log(`Encontradas ${upcomingSubtasks.length} subtareas próximas a vencer`);
+        // Buscar tareas principales en progreso con fecha de vencimiento próxima
+        const upcomingTasks = await Task.findAll({
+            where: {
+                completed: false,
+                dueDate: {
+                    [Op.and]: [
+                        { [Op.gte]: now },
+                        { [Op.lte]: tomorrow },
+                    ],
+                },
+                [Op.or]: [
+                    { notificationSentAt: null },
+                    { notificationSentAt: { [Op.lt]: new Date(now.getTime() - 23 * 60 * 60 * 1000) } },
+                ],
+            },
+            include: [
+                {
+                    model: Column,
+                    as: 'column',
+                    attributes: ['id', 'name'],
+                    include: [
+                        {
+                            model: Board,
+                            as: 'board',
+                            attributes: ['id', 'name', 'ownerId'],
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'owner',
+                                    attributes: ['id', 'email', 'displayName'],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    model: User,
+                    as: 'assignees',
+                    attributes: ['id', 'displayName', 'email'],
+                    through: { attributes: [] },
+                },
+            ],
+        });
 
-        if (upcomingSubtasks.length === 0) {
-            console.log('No hay subtareas próximas a vencer en este momento');
+        const upcomingTasksInProgress = upcomingTasks.filter((task) =>
+            isInProgressColumn(task.column?.name)
+        );
+
+        console.log(`Encontradas ${upcomingSubtasks.length} subtareas próximas a vencer`);
+        console.log(`Encontradas ${upcomingTasksInProgress.length} tareas en progreso próximas a vencer`);
+
+        if (upcomingSubtasks.length === 0 && upcomingTasksInProgress.length === 0) {
+            console.log('No hay tareas o subtareas próximas a vencer en este momento');
             console.log('========================================\n');
             return;
         }
@@ -114,6 +180,7 @@ async function checkDueDates() {
                 owner,
                 boards: new Map(),
                 subtaskIds: [],
+                taskIds: [],
             };
 
             const boardEntry = ownerEntry.boards.get(board.id) || {
@@ -159,6 +226,67 @@ async function checkDueDates() {
             ownersMap.set(ownerKey, ownerEntry);
         });
 
+        upcomingTasksInProgress.forEach((task) => {
+            const owner = task.column.board.owner;
+            if (!owner || !owner.email) {
+                console.log(`  Tarea "${task.title}": No se encontró email del propietario`);
+                return;
+            }
+
+            const ownerKey = owner.id;
+            const board = task.column.board;
+            const column = task.column;
+
+            const ownerEntry = ownersMap.get(ownerKey) || {
+                owner,
+                boards: new Map(),
+                subtaskIds: [],
+                taskIds: [],
+            };
+
+            const boardEntry = ownerEntry.boards.get(board.id) || {
+                name: board.name,
+                tasks: new Map(),
+            };
+
+            const taskAssigneeNames = (Array.isArray(task.assignees) ? task.assignees : [])
+                .map((assignee) => assignee.displayName || assignee.email)
+                .filter(Boolean);
+
+            const existingTaskEntry = boardEntry.tasks.get(task.id);
+            if (existingTaskEntry) {
+                if (!existingTaskEntry.dueDate) {
+                    existingTaskEntry.dueDate = task.dueDate || null;
+                }
+                if (!existingTaskEntry.description) {
+                    existingTaskEntry.description = task.description || null;
+                }
+                if (!existingTaskEntry.color) {
+                    existingTaskEntry.color = task.color || null;
+                }
+                if (!existingTaskEntry.assignees.length) {
+                    existingTaskEntry.assignees = taskAssigneeNames;
+                }
+                if (!existingTaskEntry.column) {
+                    existingTaskEntry.column = column.name;
+                }
+            } else {
+                boardEntry.tasks.set(task.id, {
+                    title: task.title,
+                    description: task.description || null,
+                    dueDate: task.dueDate || null,
+                    color: task.color || null,
+                    assignees: taskAssigneeNames,
+                    subtasks: [],
+                    column: column.name,
+                });
+            }
+
+            ownerEntry.boards.set(board.id, boardEntry);
+            ownerEntry.taskIds.push(task.id);
+            ownersMap.set(ownerKey, ownerEntry);
+        });
+
         let sentCount = 0;
         let errorCount = 0;
 
@@ -183,6 +311,12 @@ async function checkDueDates() {
                         { notificationSentAt: new Date() },
                         { where: { id: { [Op.in]: entry.subtaskIds } } }
                     );
+                    if (entry.taskIds.length > 0) {
+                        await Task.update(
+                            { notificationSentAt: new Date() },
+                            { where: { id: { [Op.in]: entry.taskIds } } }
+                        );
+                    }
                     sentCount++;
                     console.log(`   ✅ Resumen enviado exitosamente (ID: ${result.messageId})`);
                 } else {
@@ -290,7 +424,7 @@ async function sendDailyReports() {
                     columns.forEach(column => {
                         const columnNameLower = column.name.toLowerCase();
                         const columnTasks = [];
-                        
+
                         column.tasks.forEach(task => {
                             const taskAssignees = Array.isArray(task.assignees) && task.assignees.length > 0
                                 ? task.assignees
@@ -333,16 +467,16 @@ async function sendDailyReports() {
                             });
 
                             // Determinar el estado basado en el nombre de la columna
-                            if (columnNameLower.includes('finalizado') || 
-                                columnNameLower.includes('completado') || 
+                            if (columnNameLower.includes('finalizado') ||
+                                columnNameLower.includes('completado') ||
                                 columnNameLower.includes('hecho') ||
                                 columnNameLower.includes('done')) {
                                 completed++;
-                            } else if (columnNameLower.includes('progreso') || 
-                                       columnNameLower.includes('proceso') ||
-                                       columnNameLower.includes('trabajando') ||
-                                       columnNameLower.includes('progress') ||
-                                       columnNameLower.includes('doing')) {
+                            } else if (columnNameLower.includes('progreso') ||
+                                columnNameLower.includes('proceso') ||
+                                columnNameLower.includes('trabajando') ||
+                                columnNameLower.includes('progress') ||
+                                columnNameLower.includes('doing')) {
                                 inProgress++;
                             } else {
                                 pending++;
