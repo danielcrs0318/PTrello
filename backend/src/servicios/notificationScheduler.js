@@ -161,49 +161,65 @@ async function checkDueDates() {
             return;
         }
 
-        // Agrupar por propietario para enviar un solo correo por usuario
-        const ownersMap = new Map();
+        // Agrupar por destinatario (responsables y propietario) para enviar un solo correo por usuario
+        const recipientsMap = new Map();
 
-        upcomingSubtasks.forEach((subtask) => {
-            const owner = subtask.task.column.board.owner;
-            if (!owner || !owner.email) {
-                console.log(`  Subtarea "${subtask.title}": No se encontró email del propietario`);
-                return;
+        const ensureRecipientEntry = (user) => {
+            if (!user || !user.email) {
+                return null;
             }
 
-            const ownerKey = owner.id;
+            const key = user.email.toLowerCase();
+            if (!recipientsMap.has(key)) {
+                recipientsMap.set(key, {
+                    user,
+                    boards: new Map(),
+                    subtaskIds: [],
+                    taskIds: [],
+                });
+            }
+
+            return recipientsMap.get(key);
+        };
+
+        const ensureBoardEntry = (recipientEntry, board) => {
+            if (!recipientEntry.boards.has(board.id)) {
+                recipientEntry.boards.set(board.id, {
+                    name: board.name,
+                    tasks: new Map(),
+                });
+            }
+
+            return recipientEntry.boards.get(board.id);
+        };
+
+        const ensureTaskEntry = (boardEntry, task, column) => {
+            if (!boardEntry.tasks.has(task.id)) {
+                const taskAssigneeNames = (Array.isArray(task.assignees) ? task.assignees : [])
+                    .map((assignee) => assignee.displayName || assignee.email)
+                    .filter(Boolean);
+
+                boardEntry.tasks.set(task.id, {
+                    id: task.id,
+                    title: task.title,
+                    description: task.description || null,
+                    dueDate: task.dueDate || null,
+                    color: task.color || null,
+                    assignees: taskAssigneeNames,
+                    subtasks: [],
+                    column: column?.name || null,
+                    _subtaskIds: new Set(),
+                });
+            }
+
+            return boardEntry.tasks.get(task.id);
+        };
+
+        upcomingSubtasks.forEach((subtask) => {
             const board = subtask.task.column.board;
             const task = subtask.task;
             const column = subtask.task.column;
-
-            const ownerEntry = ownersMap.get(ownerKey) || {
-                owner,
-                boards: new Map(),
-                subtaskIds: [],
-                taskIds: [],
-            };
-
-            const boardEntry = ownerEntry.boards.get(board.id) || {
-                name: board.name,
-                tasks: new Map(),
-            };
-
-            const taskAssignees = Array.isArray(task.assignees) && task.assignees.length > 0
-                ? task.assignees
-                : [];
-            const taskAssigneeNames = taskAssignees
-                .map((assignee) => assignee.displayName || assignee.email)
-                .filter(Boolean);
-
-            const taskEntry = boardEntry.tasks.get(task.id) || {
-                title: task.title,
-                description: task.description || null,
-                dueDate: task.dueDate || null,
-                color: task.color || null,
-                assignees: taskAssigneeNames,
-                subtasks: [],
-                column: column.name,
-            };
+            const owner = board.owner;
 
             const subtaskAssignees = Array.isArray(subtask.assignees) && subtask.assignees.length > 0
                 ? subtask.assignees
@@ -212,97 +228,72 @@ async function checkDueDates() {
                 .map((assignee) => assignee.displayName || assignee.email)
                 .filter(Boolean);
 
-            taskEntry.subtasks.push({
-                title: subtask.title,
-                description: subtask.description || null,
-                dueDate: subtask.dueDate || null,
-                color: subtask.color || null,
-                assignees: subtaskAssigneeNames,
-            });
+            const recipients = [owner, ...subtaskAssignees].filter(Boolean);
+            recipients.forEach((recipient) => {
+                const recipientEntry = ensureRecipientEntry(recipient);
+                if (!recipientEntry) {
+                    return;
+                }
 
-            boardEntry.tasks.set(task.id, taskEntry);
-            ownerEntry.boards.set(board.id, boardEntry);
-            ownerEntry.subtaskIds.push(subtask.id);
-            ownersMap.set(ownerKey, ownerEntry);
+                const boardEntry = ensureBoardEntry(recipientEntry, board);
+                const taskEntry = ensureTaskEntry(boardEntry, task, column);
+
+                if (!taskEntry._subtaskIds.has(subtask.id)) {
+                    taskEntry.subtasks.push({
+                        title: subtask.title,
+                        description: subtask.description || null,
+                        dueDate: subtask.dueDate || null,
+                        color: subtask.color || null,
+                        assignees: subtaskAssigneeNames,
+                    });
+                    taskEntry._subtaskIds.add(subtask.id);
+                }
+
+                recipientEntry.subtaskIds.push(subtask.id);
+            });
         });
 
         upcomingTasksInProgress.forEach((task) => {
-            const owner = task.column.board.owner;
-            if (!owner || !owner.email) {
-                console.log(`  Tarea "${task.title}": No se encontró email del propietario`);
-                return;
-            }
-
-            const ownerKey = owner.id;
             const board = task.column.board;
             const column = task.column;
+            const owner = board.owner;
+            const taskAssignees = Array.isArray(task.assignees) ? task.assignees : [];
+            const recipients = [owner, ...taskAssignees].filter(Boolean);
 
-            const ownerEntry = ownersMap.get(ownerKey) || {
-                owner,
-                boards: new Map(),
-                subtaskIds: [],
-                taskIds: [],
-            };
+            recipients.forEach((recipient) => {
+                const recipientEntry = ensureRecipientEntry(recipient);
+                if (!recipientEntry) {
+                    return;
+                }
 
-            const boardEntry = ownerEntry.boards.get(board.id) || {
-                name: board.name,
-                tasks: new Map(),
-            };
+                const boardEntry = ensureBoardEntry(recipientEntry, board);
+                const taskEntry = ensureTaskEntry(boardEntry, task, column);
 
-            const taskAssigneeNames = (Array.isArray(task.assignees) ? task.assignees : [])
-                .map((assignee) => assignee.displayName || assignee.email)
-                .filter(Boolean);
+                taskEntry.dueDate = taskEntry.dueDate || task.dueDate || null;
+                taskEntry.description = taskEntry.description || task.description || null;
+                taskEntry.color = taskEntry.color || task.color || null;
+                taskEntry.column = taskEntry.column || column.name;
 
-            const existingTaskEntry = boardEntry.tasks.get(task.id);
-            if (existingTaskEntry) {
-                if (!existingTaskEntry.dueDate) {
-                    existingTaskEntry.dueDate = task.dueDate || null;
-                }
-                if (!existingTaskEntry.description) {
-                    existingTaskEntry.description = task.description || null;
-                }
-                if (!existingTaskEntry.color) {
-                    existingTaskEntry.color = task.color || null;
-                }
-                if (!existingTaskEntry.assignees.length) {
-                    existingTaskEntry.assignees = taskAssigneeNames;
-                }
-                if (!existingTaskEntry.column) {
-                    existingTaskEntry.column = column.name;
-                }
-            } else {
-                boardEntry.tasks.set(task.id, {
-                    title: task.title,
-                    description: task.description || null,
-                    dueDate: task.dueDate || null,
-                    color: task.color || null,
-                    assignees: taskAssigneeNames,
-                    subtasks: [],
-                    column: column.name,
-                });
-            }
-
-            ownerEntry.boards.set(board.id, boardEntry);
-            ownerEntry.taskIds.push(task.id);
-            ownersMap.set(ownerKey, ownerEntry);
+                recipientEntry.taskIds.push(task.id);
+            });
         });
 
         let sentCount = 0;
         let errorCount = 0;
 
-        for (const entry of ownersMap.values()) {
+        for (const entry of recipientsMap.values()) {
             try {
                 const boardsSummary = Array.from(entry.boards.values()).map((boardEntry) => ({
                     name: boardEntry.name,
-                    tasks: Array.from(boardEntry.tasks.values()),
+                    tasks: Array.from(boardEntry.tasks.values()).map(({ _subtaskIds, ...taskEntry }) => taskEntry),
                 }));
 
-                console.log(`Enviando resumen de vencimientos a: ${entry.owner.email}`);
+                console.log(`Enviando resumen de vencimientos a: ${entry.user.email}`);
                 console.log(`   Tableros incluidos: ${boardsSummary.length}`);
 
                 const result = await sendPendingSummary({
-                    to: entry.owner.email,
-                    userName: entry.owner.displayName || 'Usuario',
+                    to: entry.user.email,
+                    userName: entry.user.displayName || 'Usuario',
                     boardsSummary,
                 });
 
@@ -325,7 +316,7 @@ async function checkDueDates() {
                 }
             } catch (error) {
                 errorCount++;
-                console.error(`   Error enviando resumen para ${entry.owner.email}:`, error.message);
+                console.error(`   Error enviando resumen para ${entry.user.email}:`, error.message);
             }
         }
 

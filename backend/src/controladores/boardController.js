@@ -280,13 +280,6 @@ const getBoard = async (req, res) => {
         if (!isOwner && !member) {
             return res.status(403).json({ mensaje: 'No tienes acceso a este tablero.' });
         }
-        const isReader = Boolean(member && member.role === 'lector');
-        if (isReader && backgroundColor !== undefined) {
-            return res.status(403).json({
-                mensaje: 'No tienes permitido cambiar el color del tablero.',
-            });
-        }
-
         const canEdit = isOwner || (member && member.role === 'editor');
 
         const payload = sortBoardPayload(board.toJSON());

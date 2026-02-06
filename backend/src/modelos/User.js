@@ -25,7 +25,6 @@ const User = sequelize.define('users', {
     googleId: {
         type: DataTypes.STRING,
         allowNull: true,
-        unique: true,
     },
     email: {
         type: DataTypes.STRING,
@@ -49,10 +48,6 @@ const User = sequelize.define('users', {
     },
 }, {
     indexes: [
-        {
-            unique: true,
-            fields: ['google_id'],
-        },
         {
             unique: true,
             fields: ['email'],

@@ -1,12 +1,67 @@
 /**
  * Servicio de envío de correos electrónicos
- * Utiliza Resend para enviar notificaciones por email
+ * Utiliza la API de Mail Sender para enviar notificaciones por email
  * @module servicios/emailService
  */
 
-const { Resend } = require('resend');
+require('isomorphic-fetch');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const MAIL_SENDER_URL = process.env.MAIL_SENDER_URL || 'https://mail-sender.cohorsil.hn/api/send-email';
+const MAIL_SENDER_API_KEY = process.env.MAIL_SENDER_API_KEY ? process.env.MAIL_SENDER_API_KEY.trim() : '';
+
+const normalizeRecipients = (value) => {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return [value];
+};
+
+const sendEmailService = async ({ to, subject, htmlContent, cc = [], bcc = [], isHtml = true }) => {
+  const toList = normalizeRecipients(to);
+  const toAddress = toList[0];
+
+  if (!toAddress) {
+    return { success: false, error: 'Destinatario requerido' };
+  }
+
+  if (!MAIL_SENDER_API_KEY) {
+    return { success: false, error: 'MAIL_SENDER_API_KEY no configurada' };
+  }
+
+  const payload = {
+    to: toAddress,
+    subject,
+    body: htmlContent,
+    isHtml: Boolean(isHtml),
+    cc: normalizeRecipients(cc),
+    bcc: normalizeRecipients(bcc),
+  };
+
+  try {
+    const response = await fetch(MAIL_SENDER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': MAIL_SENDER_API_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error en Mail Sender:', response.status, errorText);
+      return { success: false, error: errorText || `Error enviando correo (${response.status})` };
+    }
+
+    return { success: true, messageId: 'mail-sender' };
+  } catch (error) {
+    console.error('Error en Mail Sender al enviar correo:', error.message || error);
+    return { success: false, error: error.message || 'Error enviando correo' };
+  }
+};
 
 /**
  * Envía un email de notificación sobre una subtarea próxima a vencer
@@ -28,11 +83,8 @@ async function sendDueDateNotification({ to, boardName, taskTitle, subtaskTitle,
             minute: '2-digit'
         });
 
-        const data = await resend.emails.send({
-            from: 'SprintFlow <onboarding@resend.dev>',
-            to: [to],
-            subject: `Recordatorio: Subtarea próxima a vencer - ${subtaskTitle}`,
-            html: `
+        const subject = `Recordatorio: Subtarea próxima a vencer - ${subtaskTitle}`;
+        const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -41,9 +93,9 @@ async function sendDueDateNotification({ to, boardName, taskTitle, subtaskTitle,
             <title>Recordatorio de Subtarea</title>
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">SprintFlow</h1>
-              <p style="color: #f0f0f0; margin: 10px 0 0 0;">Recordatorio de Subtarea</p>
+            <div style="background-color: #1f2937; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">SprintFlow</h1>
+              <p style="color: #e5e7eb; margin: 10px 0 0 0;">Recordatorio de Subtarea</p>
             </div>
             
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -96,25 +148,9 @@ async function sendDueDateNotification({ to, boardName, taskTitle, subtaskTitle,
             </div>
           </body>
         </html>
-      `
-        });
+        `;
 
-        // Verificar si hubo un error en la respuesta
-        if (data && data.error) {
-            console.error('Error de Resend:', data.error.message);
-            return { success: false, error: data.error.message };
-        }
-        
-        if (data && data.data && data.data.id) {
-            console.log('Email enviado con ID:', data.data.id);
-            return { success: true, messageId: data.data.id };
-        } else if (data && data.id) {
-            console.log('Email enviado con ID:', data.id);
-            return { success: true, messageId: data.id };
-        } else {
-            console.error('Respuesta inesperada de Resend:', data);
-            return { success: false, error: 'Respuesta inesperada del servidor de email' };
-        }
+        return await sendEmailService({ to, subject, htmlContent });
     } catch (error) {
         console.error('Error enviando email:', error);
         console.error('Detalles del error:', {
@@ -138,11 +174,8 @@ async function sendDueDateNotification({ to, boardName, taskTitle, subtaskTitle,
  */
 async function sendBoardInvitation({ to, boardName, inviterName, role }) {
     try {
-        const data = await resend.emails.send({
-            from: 'SprintFlow <onboarding@resend.dev>',
-            to: [to],
-            subject: `Te han invitado al tablero "${boardName}" en SprintFlow`,
-            html: `
+        const subject = `Te han invitado al tablero "${boardName}" en SprintFlow`;
+        const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -151,9 +184,9 @@ async function sendBoardInvitation({ to, boardName, inviterName, role }) {
             <title>Invitación a Tablero</title>
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">SprintFlow</h1>
-              <p style="color: #f0f0f0; margin: 10px 0 0 0;">Invitación a Tablero</p>
+            <div style="background-color: #1f2937; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">SprintFlow</h1>
+              <p style="color: #e5e7eb; margin: 10px 0 0 0;">Invitación a Tablero</p>
             </div>
             
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -219,11 +252,13 @@ async function sendBoardInvitation({ to, boardName, inviterName, role }) {
             </div>
           </body>
         </html>
-      `
-        });
+      `;
 
-        console.log('✅ Email de invitación enviado:', data.id);
-        return { success: true, messageId: data.id };
+        const result = await sendEmailService({ to, subject, htmlContent });
+        if (result.success) {
+            console.log('✅ Email de invitación enviado');
+        }
+        return result;
     } catch (error) {
         console.error('Error enviando email de invitación:', error);
         return { success: false, error: error.message };
@@ -441,11 +476,8 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
             `;
         }
 
-        const data = await resend.emails.send({
-            from: 'SprintFlow <onboarding@resend.dev>',
-            to: [to],
-            subject: `Resumen Diario - ${today}`,
-            html: `
+        const subject = `Resumen Diario - ${today}`;
+        const htmlContent = `
                 <!DOCTYPE html>
                 <html>
                   <head>
@@ -454,9 +486,9 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                     <title>Resumen Diario</title>
                   </head>
                   <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-                      <h1 style="color: white; margin: 0; font-size: 28px;">SprintFlow</h1>
-                      <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 16px;">Resumen Diario de Actividad</p>
+                    <div style="background-color: #1f2937; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">SprintFlow</h1>
+                      <p style="color: #e5e7eb; margin: 10px 0 0 0; font-size: 16px;">Resumen Diario de Actividad</p>
                     </div>
                     
                     <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -478,25 +510,9 @@ async function sendDailySummary({ to, userName, boardsSummary }) {
                     </div>
                   </body>
                 </html>
-            `
-        });
+              `;
 
-        // Verificar si hubo un error en la respuesta
-        if (data && data.error) {
-            console.error('Error de Resend:', data.error.message);
-            return { success: false, error: data.error.message };
-        }
-        
-        if (data && data.data && data.data.id) {
-            console.log('Email de resumen enviado con ID:', data.data.id);
-            return { success: true, messageId: data.data.id };
-        } else if (data && data.id) {
-            console.log('Email de resumen enviado con ID:', data.id);
-            return { success: true, messageId: data.id };
-        } else {
-            console.error('Respuesta inesperada de Resend:', data);
-            return { success: false, error: 'Respuesta inesperada del servidor de email' };
-        }
+            return await sendEmailService({ to, subject, htmlContent });
     } catch (error) {
         console.error('Error enviando resumen diario:', error);
         console.error('Detalles del error:', {
@@ -591,11 +607,8 @@ async function sendPendingSummary({ to, userName, boardsSummary }) {
       `;
     }
 
-    const data = await resend.emails.send({
-      from: 'SprintFlow <onboarding@resend.dev>',
-      to: [to],
-      subject: `Pendientes - ${today}`,
-      html: `
+    const subject = `Pendientes - ${today}`;
+    const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -604,9 +617,9 @@ async function sendPendingSummary({ to, userName, boardsSummary }) {
           <title>Pendientes</title>
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">SprintFlow</h1>
-            <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 16px;">Tareas y subtareas pendientes</p>
+          <div style="background-color: #1f2937; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">SprintFlow</h1>
+            <p style="color: #e5e7eb; margin: 10px 0 0 0; font-size: 16px;">Tareas y subtareas pendientes</p>
           </div>
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
             <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -621,24 +634,9 @@ async function sendPendingSummary({ to, userName, boardsSummary }) {
           </div>
           </body>
         </html>
-      `
-    });
+      `;
 
-    if (data && data.error) {
-      console.error('Error de Resend:', data.error.message);
-      return { success: false, error: data.error.message };
-    }
-
-    if (data && data.data && data.data.id) {
-      console.log('Email de pendientes enviado con ID:', data.data.id);
-      return { success: true, messageId: data.data.id };
-    } else if (data && data.id) {
-      console.log('Email de pendientes enviado con ID:', data.id);
-      return { success: true, messageId: data.id };
-    }
-
-    console.error('Respuesta inesperada de Resend:', data);
-    return { success: false, error: 'Respuesta inesperada del servidor de email' };
+    return await sendEmailService({ to, subject, htmlContent });
   } catch (error) {
     console.error('Error enviando resumen de pendientes:', error);
     return { success: false, error: error.message };
@@ -656,11 +654,8 @@ async function sendPendingSummary({ to, userName, boardsSummary }) {
  */
 async function sendPasswordResetPin({ to, displayName, pin, expiresInMinutes }) {
     try {
-        const data = await resend.emails.send({
-            from: 'SprintFlow <onboarding@resend.dev>',
-            to: [to],
-            subject: 'Tu PIN de recuperación de contraseña - SprintFlow',
-            html: `
+    const subject = 'Tu PIN de recuperación de contraseña - SprintFlow';
+    const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -669,9 +664,9 @@ async function sendPasswordResetPin({ to, displayName, pin, expiresInMinutes }) 
             <title>Recuperación de contraseña</title>
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">SprintFlow</h1>
-              <p style="color: #f0f0f0; margin: 10px 0 0 0;">Recuperación de contraseña</p>
+            <div style="background-color: #1f2937; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">SprintFlow</h1>
+              <p style="color: #e5e7eb; margin: 10px 0 0 0;">Recuperación de contraseña</p>
             </div>
             
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -696,22 +691,9 @@ async function sendPasswordResetPin({ to, displayName, pin, expiresInMinutes }) 
             </div>
           </body>
         </html>
-      `
-        });
+        `;
 
-        if (data && data.error) {
-            console.error('Error de Resend:', data.error.message);
-            return { success: false, error: data.error.message };
-        }
-
-        if (data && data.data && data.data.id) {
-            return { success: true, messageId: data.data.id };
-        } else if (data && data.id) {
-            return { success: true, messageId: data.id };
-        }
-
-        console.error('Respuesta inesperada de Resend:', data);
-        return { success: false, error: 'Respuesta inesperada del servidor de email' };
+        return await sendEmailService({ to, subject, htmlContent });
     } catch (error) {
         console.error('Error enviando PIN de recuperación:', error);
         return { success: false, error: error.message };
@@ -719,6 +701,7 @@ async function sendPasswordResetPin({ to, displayName, pin, expiresInMinutes }) 
 }
 
 module.exports = {
+  sendEmailService,
     sendDueDateNotification,
     sendBoardInvitation,
     sendDailySummary,
