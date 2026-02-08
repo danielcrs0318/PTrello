@@ -9,6 +9,7 @@ const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 // Configuraciones y servicios
 const passport = require('./configuraciones/passport');
@@ -25,6 +26,15 @@ const calendarRoutes = require('./rutas/calendarRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const logsDir = path.join(__dirname, '..', 'logs');
+const errorLogPath = path.join(logsDir, 'error.log');
+const accessLogPath = path.join(logsDir, 'access.log');
+
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+}
+
+const accessLogStream = fs.createWriteStream(accessLogPath, { flags: 'a' });
 
 const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
@@ -34,6 +44,7 @@ app.use(corsOrigins === '*'
     ? cors()
     : cors({ origin: corsOrigins, credentials: true }));
 app.use(morgan('dev'));
+app.use(morgan('combined', { stream: accessLogStream }));
 app.use(express.json());
 app.use(passport.initialize());
 app.use('/img', express.static(path.join(__dirname, '..', 'public', 'img')));
@@ -48,6 +59,13 @@ app.use('/calendar', calendarRoutes);
 app.use('/', imageRoutes);
 
 app.use((_req, res) => res.status(404).json({ mensaje: 'Recurso no encontrado.' }));
+
+app.use((err, _req, res, _next) => {
+    const message = err?.stack || err?.message || String(err);
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    fs.appendFile(errorLogPath, line, () => {});
+    res.status(500).json({ mensaje: 'Error interno del servidor.' });
+});
 
 /**
  * Función principal que inicia el servidor
@@ -80,8 +98,24 @@ const start = async () => {
                 console.error('Detalles del error SQL Server:', mensajes);
             }
         }
+        const message = error?.stack || error?.message || String(error);
+        const line = `[${new Date().toISOString()}] ${message}\n`;
+        fs.appendFile(errorLogPath, line, () => {});
         process.exit(1);
     }
 };
 
 start();
+
+process.on('unhandledRejection', (reason) => {
+    const message = reason?.stack || reason?.message || String(reason);
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    fs.appendFile(errorLogPath, line, () => {});
+});
+
+process.on('uncaughtException', (error) => {
+    const message = error?.stack || error?.message || String(error);
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    fs.appendFile(errorLogPath, line, () => {});
+    process.exit(1);
+});

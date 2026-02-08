@@ -15,4 +15,5 @@ public/img/
 tmp
 *.sqlite
 node_modules/
-
+.env.local
+.env.example

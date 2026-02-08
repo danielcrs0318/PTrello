@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: ptrello_frontend_prod
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: ptrello_backend_prod
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production
+    volumes:
+      - uploads:/app/public/img/projects
+
+volumes:
+  uploads:
