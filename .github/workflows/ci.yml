@@ -1,4 +1,4 @@
-name: CI - Validación Continua
+name: CI - Validación Continua CI
 
 on:
   push:
