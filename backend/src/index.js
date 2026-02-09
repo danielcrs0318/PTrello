@@ -24,6 +24,12 @@ const boardMemberRoutes = require('./rutas/boardMemberRoutes');
 const imageRoutes = require('./rutas/imageRoutes');
 const calendarRoutes = require('./rutas/calendarRoutes');
 
+// Rutas de prueba (solo en desarrollo)
+let testErrorRoutes = null;
+if (process.env.NODE_ENV !== 'production') {
+    testErrorRoutes = require('./rutas/testErrorRoutes');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const logsDir = path.join(__dirname, '..', 'logs');
@@ -53,11 +59,17 @@ const logError = async (error, options = {}) => {
     const stackTrace = error?.stack || null;
     const line = `[${new Date().toISOString()}] ${stackTrace || message}\n`;
     
-    // Guardar en archivo
+    // Guardar en archivo (siempre)
     fs.appendFile(errorLogPath, line, () => {});
     
     // Intentar guardar en base de datos
     try {
+        // Verificar que ErrorLog esté disponible
+        if (!ErrorLog) {
+            console.error('ErrorLog modelo no está disponible');
+            return;
+        }
+
         await ErrorLog.create({
             message: message.substring(0, 1000), // Limitar longitud del mensaje
             stackTrace,
@@ -69,9 +81,13 @@ const logError = async (error, options = {}) => {
             statusCode: options.statusCode || 500,
             requestBody: options.requestBody ? JSON.stringify(options.requestBody).substring(0, 5000) : null,
         });
+        console.log(`✓ Error guardado en BD: ${message.substring(0, 50)}...`);
     } catch (dbError) {
         // Si falla el guardado en BD, al menos lo registramos en el archivo
-        console.error('Error guardando en base de datos de errores:', dbError.message);
+        console.error('✗ Error guardando en base de datos de errores:', dbError.message);
+        // Guardar el error de guardado también en el archivo
+        const dbErrorLine = `[${new Date().toISOString()}] DB_ERROR: ${dbError.message}\n`;
+        fs.appendFile(errorLogPath, dbErrorLine, () => {});
     }
 };
 
@@ -97,9 +113,15 @@ app.use('/board-members', boardMemberRoutes);
 app.use('/calendar', calendarRoutes);
 app.use('/', imageRoutes);
 
+// Rutas de prueba de errores (solo en desarrollo)
+if (testErrorRoutes) {
+    app.use('/api/test', testErrorRoutes);
+    console.log('⚠️  Rutas de prueba de errores habilitadas en /api/test');
+}
+
 app.use((_req, res) => res.status(404).json({ mensaje: 'Recurso no encontrado.' }));
 
-app.use((err, req, res, _next) => {
+app.use(async (err, req, res, _next) => {
     // Extraer información de la petición
     const userId = req.user?.id || null;
     const ipAddress = req.ip || req.connection?.remoteAddress || null;
@@ -108,8 +130,8 @@ app.use((err, req, res, _next) => {
     const url = req.originalUrl || req.url;
     const requestBody = req.body && Object.keys(req.body).length > 0 ? req.body : null;
     
-    // Guardar error en archivo y BD
-    logError(err, {
+    // Guardar error en archivo y BD (esperar a que termine)
+    await logError(err, {
         httpMethod,
         url,
         ipAddress,
