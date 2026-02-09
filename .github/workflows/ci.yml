@@ -34,30 +34,30 @@ jobs:
       - name: Verificar sintaxis de archivos JavaScript
         working-directory: backend
         run: |
-          echo "🔍 Verificando archivos JavaScript..."
+          echo "Verificando archivos JavaScript..."
           find src -name "*.js" -type f -exec node -c {} \;
-          echo "✅ Todos los archivos tienen sintaxis válida"
+          echo "Todos los archivos tienen sintaxis valida"
 
       - name: Verificar estructura de archivos críticos
         working-directory: backend
         run: |
-          echo "🔍 Verificando estructura del backend..."
-          test -f src/index.js && echo "✅ index.js existe"
-          test -f package.json && echo "✅ package.json existe"
-          test -d src/modelos && echo "✅ Directorio modelos existe"
-          test -d src/rutas && echo "✅ Directorio rutas existe"
-          test -d src/controladores && echo "✅ Directorio controladores existe"
-          test -d src/configuraciones && echo "✅ Directorio configuraciones existe"
-          test -d src/servicios && echo "✅ Directorio servicios existe"
-          echo "✅ Estructura del backend válida"
+          echo "Verificando estructura del backend..."
+          test -f src/index.js && echo "index.js existe"
+          test -f package.json && echo "package.json existe"
+          test -d src/modelos && echo "Directorio modelos existe"
+          test -d src/rutas && echo "Directorio rutas existe"
+          test -d src/controladores && echo "Directorio controladores existe"
+          test -d src/configuraciones && echo "Directorio configuraciones existe"
+          test -d src/servicios && echo "Directorio servicios existe"
+          echo "Estructura del backend valida"
 
       - name: Verificar archivo .env.example (si existe)
         working-directory: backend
         run: |
           if [ -f ".env.example" ]; then
-            echo "✅ Archivo .env.example encontrado"
+            echo "Archivo .env.example encontrado"
           else
-            echo "⚠️ No se encontró archivo .env.example"
+            echo "No se encontro archivo .env.example"
           fi
         continue-on-error: true
 
@@ -65,10 +65,10 @@ jobs:
         working-directory: backend
         run: |
           if grep -q "\"test\":" package.json 2>/dev/null; then
-            echo "🧪 Ejecutando tests..."
-            npm test || echo "⚠️ Tests fallaron"
+            echo "Ejecutando tests..."
+            npm test || echo "Tests fallaron"
           else
-            echo "ℹ️ No hay tests configurados"
+            echo "No hay tests configurados"
           fi
         continue-on-error: true
 
@@ -102,26 +102,26 @@ jobs:
         working-directory: frontend
         run: |
           if [ -d "dist" ]; then
-            echo "✅ Build generado correctamente"
-            echo "📦 Tamaño del build:"
+            echo "Build generado correctamente"
+            echo "Tamano del build:"
             du -sh dist/
-            echo "📦 Archivos generados:"
+            echo "Archivos generados:"
             ls -lah dist/ | head -20
           else
-            echo "❌ Error: No se generó el directorio dist"
+            echo "Error: No se genero el directorio dist"
             exit 1
           fi
 
       - name: Verificar estructura de archivos críticos
         working-directory: frontend
         run: |
-          echo "🔍 Verificando estructura del frontend..."
-          test -f index.html && echo "✅ index.html existe"
-          test -f package.json && echo "✅ package.json existe"
-          test -d src && echo "✅ Directorio src existe"
-          test -f vite.config.js && echo "✅ vite.config.js existe"
-          test -f tailwind.config.js && echo "✅ tailwind.config.js existe"
-          echo "✅ Estructura del frontend válida"
+          echo "Verificando estructura del frontend..."
+          test -f index.html && echo "index.html existe"
+          test -f package.json && echo "package.json existe"
+          test -d src && echo "Directorio src existe"
+          test -f vite.config.js && echo "vite.config.js existe"
+          test -f tailwind.config.js && echo "tailwind.config.js existe"
+          echo "Estructura del frontend valida"
 
       - name: Subir artefacto del build
         uses: actions/upload-artifact@v4
@@ -169,8 +169,8 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
 
-      - name: ✅ Imagen construida exitosamente
-        run: echo "✅ Imagen ${{ matrix.service.name }} construida correctamente"
+      - name: Imagen construida exitosamente
+        run: echo "Imagen ${{ matrix.service.name }} construida correctamente"
 
   # Job 4: Validar Docker Compose
   test-docker-compose:
@@ -183,88 +183,88 @@ jobs:
 
       - name: Crear archivos .env temporales para validación
         run: |
-          echo "📝 Creando archivos .env temporales desde .example..."
+          echo "Creando archivos .env temporales desde .example..."
           
           # Copiar y modificar .env.local.example si existe
           if [ -f ".env.local.example" ]; then
             cp .env.local.example .env.local
-            echo "✅ .env.local creado desde .example"
+            echo "archivo .env.local creado desde .example"
           else
             # Crear .env.local básico si no existe el ejemplo
-            cat > .env.local << 'EOF'
-DB_HOST=localhost
-DB_NAME=test_db
-DB_USER=test
-DB_PASSWORD=test
-DB_PORT=1433
-DB_ENCRYPT=true
-DB_TRUST_CERT=true
-JWT_SECRET=test_secret_key_for_ci
-PORT=3000
-NODE_ENV=development
-CORS_ORIGINS=http://localhost:5173
-GOOGLE_CLIENT_ID=test_client
-GOOGLE_CLIENT_SECRET=test_secret
-GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
-EOF
-            echo "✅ .env.local creado con valores por defecto"
+            cat > .env.local <<EOF
+          DB_HOST=localhost
+          DB_NAME=test_db
+          DB_USER=test
+          DB_PASSWORD=test
+          DB_PORT=1433
+          DB_ENCRYPT=true
+          DB_TRUST_CERT=true
+          JWT_SECRET=test_secret_key_for_ci
+          PORT=3000
+          NODE_ENV=development
+          CORS_ORIGINS=http://localhost:5173
+          GOOGLE_CLIENT_ID=test_client
+          GOOGLE_CLIENT_SECRET=test_secret
+          GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+          EOF
+            echo "archivo .env.local creado con valores por defecto"
           fi
           
           # Copiar y modificar .env.production.example si existe
           if [ -f ".env.production.example" ]; then
             cp .env.production.example .env.production
-            echo "✅ .env.production creado desde .example"
+            echo "archivo .env.production creado desde .example"
           else
             # Crear .env.production básico si no existe el ejemplo
-            cat > .env.production << 'EOF'
-DB_HOST=prod-db-host
-DB_NAME=prod_db
-DB_USER=prod_user
-DB_PASSWORD=prod_password
-DB_PORT=1433
-DB_ENCRYPT=true
-DB_TRUST_CERT=false
-JWT_SECRET=prod_secret_key_for_ci
-PORT=3000
-NODE_ENV=production
-CORS_ORIGINS=https://example.com
-GOOGLE_CLIENT_ID=prod_client
-GOOGLE_CLIENT_SECRET=prod_secret
-GOOGLE_CALLBACK_URL=https://example.com/auth/google/callback
-VITE_API_URL=https://example.com
-EOF
-            echo "✅ .env.production creado con valores por defecto"
+            cat > .env.production <<EOF
+          DB_HOST=prod-db-host
+          DB_NAME=prod_db
+          DB_USER=prod_user
+          DB_PASSWORD=prod_password
+          DB_PORT=1433
+          DB_ENCRYPT=true
+          DB_TRUST_CERT=false
+          JWT_SECRET=prod_secret_key_for_ci
+          PORT=3000
+          NODE_ENV=production
+          CORS_ORIGINS=https://example.com
+          GOOGLE_CLIENT_ID=prod_client
+          GOOGLE_CLIENT_SECRET=prod_secret
+          GOOGLE_CALLBACK_URL=https://example.com/auth/google/callback
+          VITE_API_URL=https://example.com
+          EOF
+            echo "archivo .env.production creado con valores por defecto"
           fi
 
       - name: Validar docker-compose.local.yml
         run: |
-          echo "🔍 Validando docker-compose.local.yml..."
+          echo "Validando docker-compose.local.yml..."
           if [ -f "docker-compose.local.yml" ]; then
             docker compose -f docker-compose.local.yml config > /dev/null 2>&1
             if [ $? -eq 0 ]; then
-              echo "✅ docker-compose.local.yml es válido"
+              echo "docker-compose.local.yml es valido"
             else
-              echo "⚠️ Advertencia: docker-compose.local.yml tiene warnings (probablemente variables no usadas)"
+              echo "Advertencia: docker-compose.local.yml tiene warnings"
               docker compose -f docker-compose.local.yml config 2>&1 | head -20
             fi
           else
-            echo "❌ docker-compose.local.yml no existe"
+            echo "docker-compose.local.yml no existe"
             exit 1
           fi
 
       - name: Validar docker-compose.prod.yml
         run: |
-          echo "🔍 Validando docker-compose.prod.yml..."
+          echo "Validando docker-compose.prod.yml..."
           if [ -f "docker-compose.prod.yml" ]; then
             docker compose -f docker-compose.prod.yml config > /dev/null 2>&1
             if [ $? -eq 0 ]; then
-              echo "✅ docker-compose.prod.yml es válido"
+              echo "docker-compose.prod.yml es valido"
             else
-              echo "⚠️ Advertencia: docker-compose.prod.yml tiene warnings (probablemente variables no usadas)"
+              echo "Advertencia: docker-compose.prod.yml tiene warnings"
               docker compose -f docker-compose.prod.yml config 2>&1 | head -20
             fi
           else
-            echo "❌ docker-compose.prod.yml no existe"
+            echo "docker-compose.prod.yml no existe"
             exit 1
           fi
       
@@ -272,7 +272,7 @@ EOF
         if: always()
         run: |
           rm -f .env.local .env.production
-          echo "🧹 Archivos temporales eliminados"
+          echo "Archivos temporales eliminados"
 
   # Job final: Resumen de resultados
   summary:
@@ -285,29 +285,29 @@ EOF
       - name: Resultado del CI
         run: |
           echo "================================================"
-          echo "         RESUMEN DE VALIDACIÓN CONTINUA         "
+          echo "         RESUMEN DE VALIDACION CONTINUA         "
           echo "================================================"
           echo ""
-          echo "🔧 Backend: ${{ needs.test-backend.result }}"
-          echo "🎨 Frontend: ${{ needs.test-frontend.result }}"
-          echo "🐳 Docker: ${{ needs.test-docker.result }}"
-          echo "📦 Docker Compose: ${{ needs.test-docker-compose.result }}"
+          echo "Backend: ${{ needs.test-backend.result }}"
+          echo "Frontend: ${{ needs.test-frontend.result }}"
+          echo "Docker: ${{ needs.test-docker.result }}"
+          echo "Docker Compose: ${{ needs.test-docker-compose.result }}"
           echo ""
           echo "================================================"
           
-          if [ "${{ needs.test-backend.result }}" == "success" ] && \
-             [ "${{ needs.test-frontend.result }}" == "success" ] && \
-             [ "${{ needs.test-docker.result }}" == "success" ] && \
-             [ "${{ needs.test-docker-compose.result }}" == "success" ]; then
-            echo "✅ TODOS LOS TESTS PASARON EXITOSAMENTE"
+          if [ "${{ needs.test-backend.result }}" = "success" ] && \
+             [ "${{ needs.test-frontend.result }}" = "success" ] && \
+             [ "${{ needs.test-docker.result }}" = "success" ] && \
+             [ "${{ needs.test-docker-compose.result }}" = "success" ]; then
+            echo "TODOS LOS TESTS PASARON EXITOSAMENTE"
             echo ""
-            echo "El proyecto está listo para:"
-            echo "  - 🚀 Despliegue"
-            echo "  - 🔄 Merge a rama principal"
-            echo "  - 📦 Construcción de imágenes de producción"
+            echo "El proyecto esta listo para:"
+            echo "  - Despliegue"
+            echo "  - Merge a rama principal"
+            echo "  - Construccion de imagenes de produccion"
             exit 0
           else
-            echo "❌ ALGUNOS TESTS FALLARON - Revisa los detalles arriba"
+            echo "ALGUNOS TESTS FALLARON - Revisa los detalles arriba"
             exit 1
           fi
 
