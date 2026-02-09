@@ -183,58 +183,63 @@ jobs:
 
       - name: Crear archivos .env temporales para validación
         run: |
-          echo "Creando archivos .env temporales desde .example..."
+          echo "Creando archivos .env temporales..."
           
-          # Copiar y modificar .env.local.example si existe
+          # Copiar .env.local.example si existe
           if [ -f ".env.local.example" ]; then
             cp .env.local.example .env.local
-            echo "archivo .env.local creado desde .example"
+            echo "✓ .env.local creado desde .example"
           else
-            # Crear .env.local básico si no existe el ejemplo
-            cat > .env.local <<EOF
-          DB_HOST=localhost
-          DB_NAME=test_db
-          DB_USER=test
-          DB_PASSWORD=test
-          DB_PORT=1433
-          DB_ENCRYPT=true
-          DB_TRUST_CERT=true
-          JWT_SECRET=test_secret_key_for_ci
-          PORT=3000
-          NODE_ENV=development
-          CORS_ORIGINS=http://localhost:5173
-          GOOGLE_CLIENT_ID=test_client
-          GOOGLE_CLIENT_SECRET=test_secret
-          GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
-          EOF
-            echo "archivo .env.local creado con valores por defecto"
+            # Crear .env.local básico
+            cat > .env.local << 'EOF'
+DB_HOST=localhost
+DB_NAME=test_db
+DB_USER=test
+DB_PASSWORD=test
+DB_PORT=1433
+DB_ENCRYPT=true
+DB_TRUST_CERT=true
+JWT_SECRET=test_secret_key_for_ci
+PORT=3000
+NODE_ENV=development
+CORS_ORIGINS=http://localhost:5173
+GOOGLE_CLIENT_ID=test_client
+GOOGLE_CLIENT_SECRET=test_secret
+GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+GOOGLE_SUCCESS_REDIRECT=http://localhost:5173/auth/callback
+EOF
+            echo "✓ .env.local creado con valores por defecto"
           fi
           
-          # Copiar y modificar .env.production.example si existe
+          # Copiar .env.production.example si existe
           if [ -f ".env.production.example" ]; then
             cp .env.production.example .env.production
-            echo "archivo .env.production creado desde .example"
+            echo "✓ .env.production creado desde .example"
           else
-            # Crear .env.production básico si no existe el ejemplo
-            cat > .env.production <<EOF
-          DB_HOST=prod-db-host
-          DB_NAME=prod_db
-          DB_USER=prod_user
-          DB_PASSWORD=prod_password
-          DB_PORT=1433
-          DB_ENCRYPT=true
-          DB_TRUST_CERT=false
-          JWT_SECRET=prod_secret_key_for_ci
-          PORT=3000
-          NODE_ENV=production
-          CORS_ORIGINS=https://example.com
-          GOOGLE_CLIENT_ID=prod_client
-          GOOGLE_CLIENT_SECRET=prod_secret
-          GOOGLE_CALLBACK_URL=https://example.com/auth/google/callback
-          VITE_API_URL=https://example.com
-          EOF
-            echo "archivo .env.production creado con valores por defecto"
+            # Crear .env.production básico
+            cat > .env.production << 'EOF'
+DB_HOST=prod-db-host
+DB_NAME=prod_db
+DB_USER=prod_user
+DB_PASSWORD=prod_password
+DB_PORT=1433
+DB_ENCRYPT=true
+DB_TRUST_CERT=false
+JWT_SECRET=prod_secret_key_for_ci
+PORT=3000
+NODE_ENV=production
+CORS_ORIGINS=https://example.com
+GOOGLE_CLIENT_ID=prod_client
+GOOGLE_CLIENT_SECRET=prod_secret
+GOOGLE_CALLBACK_URL=https://example.com/auth/google/callback
+GOOGLE_SUCCESS_REDIRECT=https://example.com/auth/callback
+VITE_API_URL=https://example.com
+EOF
+            echo "✓ .env.production creado con valores por defecto"
           fi
+          
+          # Verificar que los archivos se crearon
+          ls -la .env.local .env.production
 
       - name: Validar docker-compose.local.yml
         run: |
@@ -299,9 +304,6 @@ jobs:
              [ "${{ needs.test-frontend.result }}" = "success" ] && \
              [ "${{ needs.test-docker.result }}" = "success" ] && \
              [ "${{ needs.test-docker-compose.result }}" = "success" ]; then
-            echo "TODOS LOS TESTS PASARON EXITOSAMENTE"
-            echo ""
-            echo "El proyecto esta listo para:"
             echo "  - Despliegue"
             echo "  - Merge a rama principal"
             echo "  - Construccion de imagenes de produccion"
