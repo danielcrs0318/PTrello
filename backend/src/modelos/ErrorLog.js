@@ -75,16 +75,16 @@ const ErrorLog = sequelize.define('error_logs', {
     timestamps: true,
     indexes: [
         {
-            fields: ['createdAt'],
+            fields: ['created_at'],
         },
         {
-            fields: ['userId'],
+            fields: ['user_id'],
         },
         {
-            fields: ['httpMethod'],
+            fields: ['http_method'],
         },
         {
-            fields: ['statusCode'],
+            fields: ['status_code'],
         },
     ],
 });
