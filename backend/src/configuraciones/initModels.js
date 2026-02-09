@@ -16,6 +16,7 @@ const PasswordResetPin = require('../modelos/PasswordResetPin');
 const TaskAssignee = require('../modelos/TaskAssignee');
 const SubtaskAssignee = require('../modelos/SubtaskAssignee');
 const Image = require('../modelos/Image');
+const ErrorLog = require('../modelos/ErrorLog');
 
 let initialized = false;
 
@@ -201,6 +202,17 @@ const initModels = () => {
         foreignKey: 'userId',
     });
 
+    // Relaciones de ErrorLog
+    User.hasMany(ErrorLog, {
+        as: 'errorLogs',
+        foreignKey: 'userId',
+        onDelete: 'SET NULL',
+    });
+    ErrorLog.belongsTo(User, {
+        as: 'user',
+        foreignKey: 'userId',
+    });
+
     initialized = true;
 };
 
@@ -218,4 +230,5 @@ module.exports = {
     TaskAssignee,
     SubtaskAssignee,
     Image,
+    ErrorLog,
 };

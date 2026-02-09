@@ -1,0 +1,36 @@
+# Variables de entorno
+.env.example
+.env.local
+.env
+.env.*
+
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Logs
+*.log
+logs/*.log
+backend/logs/*.log
+
+# Archivos temporales y caché
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/settings.json
+.idea/
+
+# Archivos de prueba
+coverage/
+.nyc_output/
+
+# Archivos de sistema
+*.pid
+*.seed
+*.pid.lock
+
