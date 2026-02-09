@@ -1,4 +1,4 @@
-name: CI - Validación Continua CI
+﻿name: CI - ValidaciÃ³n Continua CI
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
+      - name: Checkout cÃ³digo
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -38,7 +38,7 @@ jobs:
           find src -name "*.js" -type f -exec node -c {} \;
           echo "Todos los archivos tienen sintaxis valida"
 
-      - name: Verificar estructura de archivos críticos
+      - name: Verificar estructura de archivos crÃ­ticos
         working-directory: backend
         run: |
           echo "Verificando estructura del backend..."
@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
+      - name: Checkout cÃ³digo
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -92,13 +92,13 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Construir aplicación frontend
+      - name: Construir aplicaciÃ³n frontend
         working-directory: frontend
         run: npm run build
         env:
           CI: true
 
-      - name: Verificar que el build se generó correctamente
+      - name: Verificar que el build se generÃ³ correctamente
         working-directory: frontend
         run: |
           if [ -d "dist" ]; then
@@ -112,7 +112,7 @@ jobs:
             exit 1
           fi
 
-      - name: Verificar estructura de archivos críticos
+      - name: Verificar estructura de archivos crÃ­ticos
         working-directory: frontend
         run: |
           echo "Verificando estructura del frontend..."
@@ -130,7 +130,7 @@ jobs:
           path: frontend/dist/
           retention-days: 7
 
-  # Job 3: Validar construcción de contenedores Docker
+  # Job 3: Validar construcciÃ³n de contenedores Docker
   test-docker:
     name: Validar Docker
     runs-on: ubuntu-latest
@@ -153,7 +153,7 @@ jobs:
             context: frontend
 
     steps:
-      - name: Checkout código
+      - name: Checkout cÃ³digo
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -178,66 +178,66 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
+      - name: Checkout cÃ³digo
         uses: actions/checkout@v4
 
-      - name: Crear archivos .env temporales para validación
+      - name: Crear archivos .env temporales para validaciÃ³n
         run: |
           echo "Creando archivos .env temporales..."
-          
+
           # Copiar .env.local.example si existe
           if [ -f ".env.local.example" ]; then
             cp .env.local.example .env.local
-            echo "✓ .env.local creado desde .example"
+            echo "âœ“ .env.local creado desde .example"
           else
-            # Crear .env.local básico
-            cat > .env.local << 'EOF'
-DB_HOST=localhost
-DB_NAME=test_db
-DB_USER=test
-DB_PASSWORD=test
-DB_PORT=1433
-DB_ENCRYPT=true
-DB_TRUST_CERT=true
-JWT_SECRET=test_secret_key_for_ci
-PORT=3000
-NODE_ENV=development
-CORS_ORIGINS=http://localhost:5173
-GOOGLE_CLIENT_ID=test_client
-GOOGLE_CLIENT_SECRET=test_secret
-GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
-GOOGLE_SUCCESS_REDIRECT=http://localhost:5173/auth/callback
-EOF
-            echo "✓ .env.local creado con valores por defecto"
+            # Crear .env.local bÃ¡sico
+            {
+              echo "DB_HOST=localhost"
+              echo "DB_NAME=test_db"
+              echo "DB_USER=test"
+              echo "DB_PASSWORD=test"
+              echo "DB_PORT=1433"
+              echo "DB_ENCRYPT=true"
+              echo "DB_TRUST_CERT=true"
+              echo "JWT_SECRET=test_secret_key_for_ci"
+              echo "PORT=3000"
+              echo "NODE_ENV=development"
+              echo "CORS_ORIGINS=http://localhost:5173"
+              echo "GOOGLE_CLIENT_ID=test_client"
+              echo "GOOGLE_CLIENT_SECRET=test_secret"
+              echo "GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback"
+              echo "GOOGLE_SUCCESS_REDIRECT=http://localhost:5173/auth/callback"
+            } > .env.local
+            echo "âœ“ .env.local creado con valores por defecto"
           fi
-          
+
           # Copiar .env.production.example si existe
           if [ -f ".env.production.example" ]; then
             cp .env.production.example .env.production
-            echo "✓ .env.production creado desde .example"
+            echo "âœ“ .env.production creado desde .example"
           else
-            # Crear .env.production básico
-            cat > .env.production << 'EOF'
-DB_HOST=prod-db-host
-DB_NAME=prod_db
-DB_USER=prod_user
-DB_PASSWORD=prod_password
-DB_PORT=1433
-DB_ENCRYPT=true
-DB_TRUST_CERT=false
-JWT_SECRET=prod_secret_key_for_ci
-PORT=3000
-NODE_ENV=production
-CORS_ORIGINS=https://example.com
-GOOGLE_CLIENT_ID=prod_client
-GOOGLE_CLIENT_SECRET=prod_secret
-GOOGLE_CALLBACK_URL=https://example.com/auth/google/callback
-GOOGLE_SUCCESS_REDIRECT=https://example.com/auth/callback
-VITE_API_URL=https://example.com
-EOF
-            echo "✓ .env.production creado con valores por defecto"
+            # Crear .env.production bÃ¡sico
+            {
+              echo "DB_HOST=prod-db-host"
+              echo "DB_NAME=prod_db"
+              echo "DB_USER=prod_user"
+              echo "DB_PASSWORD=prod_password"
+              echo "DB_PORT=1433"
+              echo "DB_ENCRYPT=true"
+              echo "DB_TRUST_CERT=false"
+              echo "JWT_SECRET=prod_secret_key_for_ci"
+              echo "PORT=3000"
+              echo "NODE_ENV=production"
+              echo "CORS_ORIGINS=https://example.com"
+              echo "GOOGLE_CLIENT_ID=prod_client"
+              echo "GOOGLE_CLIENT_SECRET=prod_secret"
+              echo "GOOGLE_CALLBACK_URL=https://example.com/auth/google/callback"
+              echo "GOOGLE_SUCCESS_REDIRECT=https://example.com/auth/callback"
+              echo "VITE_API_URL=https://example.com"
+            } > .env.production
+            echo "âœ“ .env.production creado con valores por defecto"
           fi
-          
+
           # Verificar que los archivos se crearon
           ls -la .env.local .env.production
 
@@ -272,7 +272,7 @@ EOF
             echo "docker-compose.prod.yml no existe"
             exit 1
           fi
-      
+
       - name: Limpiar archivos temporales
         if: always()
         run: |
@@ -299,7 +299,7 @@ EOF
           echo "Docker Compose: ${{ needs.test-docker-compose.result }}"
           echo ""
           echo "================================================"
-          
+
           if [ "${{ needs.test-backend.result }}" = "success" ] && \
              [ "${{ needs.test-frontend.result }}" = "success" ] && \
              [ "${{ needs.test-docker.result }}" = "success" ] && \
