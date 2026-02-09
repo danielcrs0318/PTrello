@@ -1,0 +1,104 @@
+name: Build & Push - Construcción y Publicación de Imágenes
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/build-and-push.yml'
+  workflow_dispatch:
+
+env:
+  DOCKERHUB_USERNAME: molinacont18
+
+jobs:
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile.prod
+            image: ptrello-backend
+            
+          - name: Frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile.prod
+            image: ptrello-frontend
+            build-args: |
+              VITE_API_URL=${{ secrets.VITE_API_URL }}
+
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔐 Login a Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 📝 Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+
+      - name: 🏗️ Build & Push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build-args }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: ✅ Imagen publicada
+        run: |
+          echo "✅ Imagen ${{ matrix.name }} publicada exitosamente"
+          echo "🏷️ Tags: ${{ steps.meta.outputs.tags }}"
+          echo "📦 Repositorio: ${{ env.DOCKERHUB_USERNAME }}/${{ matrix.image }}"
+
+  summary:
+    name: Resumen de Build
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: always()
+
+    steps:
+      - name: 📊 Estado del build
+        run: |
+          echo "================================================"
+          echo "    BUILD & PUSH - RESUMEN                      "
+          echo "================================================"
+          echo ""
+          echo "Estado: ${{ needs.build-and-push.result }}"
+          echo ""
+          if [ "${{ needs.build-and-push.result }}" = "success" ]; then
+            echo "✅ Imágenes construidas y publicadas en Docker Hub"
+            echo "🚀 Listas para deployment en servidor"
+            echo ""
+            echo "Imágenes disponibles:"
+            echo "  - molinacont18/ptrello-backend:latest"
+            echo "  - molinacont18/ptrello-frontend:latest"
+          else
+            echo "❌ Error en construcción de imágenes"
+            echo "Revisa los logs arriba"
+          fi
+          echo "================================================"
