@@ -1,19 +1,42 @@
+# Variables de entorno (ignorar archivos reales)
 .env
+.env.local
+.env.production
+.env.development
+.env.test
+
+# Permitir archivos .example
+!.env.example
+
+# Dependencias
 node_modules
+node_modules/
+
+# Build
 dist
-.DS_Store
-npm-debug.log
-.env
-.vscode
-.idea
-coverage
+
+# Logs
 logs
 *.log
+npm-debug.log
+
+# Procesos
 pids
 *.pid
+
+# Archivos subidos por usuarios
 public/img/
+
+# Archivos temporales
 tmp
+.DS_Store
+
+# Bases de datos de desarrollo
 *.sqlite
-node_modules/
-.env.local
-.env.example
+
+# IDEs
+.vscode
+.idea
+
+# Cobertura de tests
+coverage

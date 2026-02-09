@@ -1,8 +1,14 @@
 # Variables de entorno
-.env.example
-.env.local
+# Ignorar archivos .env reales
 .env
-.env.*
+.env.local
+.env.production
+.env.development
+.env.test
+
+# Permitir archivos .example (no ignorar)
+!.env*.example
+!**/.env*.example
 
 # Dependencias
 node_modules/
